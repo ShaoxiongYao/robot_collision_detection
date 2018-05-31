@@ -3,105 +3,128 @@
 //
 
 #include <robot_collision_detection/CollisionPF.h>
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>     // Post processing flags
-#include <assimp/scene.h>           // Output data structure
-#include <ros/package.h>
-#include <string>
+
+
+void CollisionPF::load_meshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes){
+    std::vector<urdf::LinkConstSharedPtr> links;
+    links.push_back(model->getRoot());
+    //links.push_back(urdf_model_->getLink(links.back()->child_joints.back()->child_link_name));
+
+    meshes.clear();
+    //Load collision meshes
+    while(links.back()->name.compare(this->base_frame_)!=0) {
+        links.push_back(urdf_model_->getLink(links.back()->child_joints.back()->child_link_name));
+    }
+    while (links.back()->getParent()->name.compare(this->ee_frame_)!=0 && links.back()->child_joints.size()!=0) {
+        if(links.back()->collision!=NULL){
+            std::string mesh_path;
+            if (links.back()->collision->geometry->type==urdf::Geometry::MESH){
+                urdf::Mesh* mesh= boost::dynamic_pointer_cast<urdf::Mesh>(links.back()->collision->geometry.get());
+                if (!mesh->filename.substr(0,10).compare("package://")) {
+                    std::size_t pos = mesh->filename.substr(10).find("/");
+                    mesh_path = ros::package::getPath(mesh->filename.substr(10, pos)) +
+                                mesh->filename.substr(10 + pos, -1);
+                }
+                else{
+                    mesh_path=mesh->filename;
+                }
+
+                links_phys.push_back((urdf::LinkConstSharedPtr) links.back());
+
+
+                boost::shared_ptr<CollMesh> a(new CollMesh(mesh_path,links.back()));
+                //a=new CollMesh(mesh_path);
+                meshes_.push_back(a);
+                printf("N: %d\n",a->getMesh()->mNumVertices);
+                //       printf("O: %d\n",meshes.back().getMesh()->mNumVertices);
+
+            }
+
+        }
+        links.push_back(urdf_model_->getLink(links.back()->child_joints.back()->child_link_name));
+    }
+
+}
 
 void CollisionPF::init(){
     ros::param::param<std::string>(ns_+"/robot_description_param", this->description_param_, "/robot_description");
-    ros::param::param<std::string>(ns_+"/base_frame", this->base_frame_, "world");
+    ros::param::param<std::string>(ns_+"/joint_states_topic", this->joint_states_topic_, "/joint_states");
+    ros::param::param<std::string>(ns_+"/base_frame", this->base_frame_, "iiwa_link_0");
     ros::param::param<std::string>(ns_+"/ee_frame", this->ee_frame_, "iiwa_link_7");
     ros::param::param<double>(ns_+"/frequency", this->freq_, 10.0);
     ros::param::param<std::string>(this->description_param_, robot_description_xml_, "");
 
+    this->jnt_array_.resize(7);
+
+    sub_jointstate_=nh_->subscribe(this->joint_states_topic_,1,&CollisionPF::joint_state_callback,this);
+    pub_marray_=nh_->advertise<visualization_msgs::MarkerArray>("body_markers",1);
+    pub_poses_=nh_->advertise<geometry_msgs::PoseArray>("joint_poses",1);
+
+
+
+    ROS_INFO("Namespace: [%s]",ns_.c_str());
     kdl_parser::treeFromParam(this->description_param_,robot_tree_);
     robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_);
     rate_=new ros::Rate(freq_);
 
     urdf_model_ = urdf::parseURDF(robot_description_xml_);
-
     std::vector<urdf::LinkConstSharedPtr> links;
 
-    links.push_back(urdf_model_->getRoot());
-    ROS_WARN_STREAM(links.back()->name.c_str());
-    while (links.back()->name.compare(this->ee_frame_)!=0 && links.back()->child_joints.size()!=0) {
-        ROS_INFO_STREAM(links.back()->name.c_str());
-        //urdf::Geometry *geom=links.back()->collision->geometry.get();
+    this->load_meshes(urdf_model_,links,meshes_);
+    this->fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(this->robot_chain_));
 
-
-        if(links.back()->collision!=NULL){
-            if (links.back()->collision->geometry->type==urdf::Geometry::MESH){
-                urdf::Mesh* mesh= boost::dynamic_pointer_cast<urdf::Mesh>(links.back()->collision->geometry.get());
-                // urdf::Mesh* mesh2 = dynamic_cast<urdf::Mesh*>(geom.get());
-
-
-                std::size_t pos=mesh->filename.substr(10).find("/");
-
-
-
-
-                  ROS_WARN_STREAM("N: " << pos << " " << mesh->filename.substr(10,pos).c_str());
-
-                ROS_WARN_STREAM(ros::package::getPath(mesh->filename.substr(10,pos)));
-                ROS_WARN_STREAM("###" << mesh->filename.substr(10+pos,-1));
-
-                std::string mesh_path = ros::package::getPath(mesh->filename.substr(10,pos)) +
-                        mesh->filename.substr(10+pos,-1);
-
-
-
-             //   mesh->filename="/home/joao/ros_soma/src/iiwa_stack/iiwa_description"+mesh
-
-                Assimp::Importer _importer;
-                const aiScene* scene = _importer.ReadFile(mesh_path, aiProcess_SortByPType|aiProcess_Triangulate); //|aiProcess_GenNormals|aiProcess_GenUVCoords|aiProcess_FlipUVs);
-                if( !scene ) {
-                    ROS_WARN("failed to load resource %s",mesh_path.c_str());
-                    return;
-                }
-                if( !scene->mRootNode ) {
-                    ROS_WARN("resource %s has no data",mesh_path.c_str());
-                    return;
-                }
-                if (!scene->HasMeshes()) {
-                    ROS_WARN_STREAM("No meshes found in file %s" << mesh_path.c_str());
-                    return;
-                }
-
-                ROS_ERROR_STREAM("NMES: " << scene->mNumMeshes);
-
-                aiMesh* input_mesh = scene->mMeshes[0];
-                ROS_ERROR_STREAM("NMES: " << input_mesh->mNumFaces);
-
-
-
-
-            }
-        }
-
-
-
-
-
-
-
-        links.push_back(urdf_model_->getLink(links.back()->child_joints.back()->child_link_name));
+}
+void CollisionPF::joint_state_callback(const sensor_msgs::JointState::ConstPtr &msg){
+    this->joint_state_=*msg;
+    for(int i=0;i<7;i++){
+        this->jnt_array_.q.data[i]=msg->position.at(i);
     }
-
-/*
-    urdf::Mesh mesh;
-    urdf::LinkConstSharedPtr link1=urdf_model_->getLink(robot_chain_.getSegment(1).getName());
-    urdf::GeometryConstSharedPtr geom1=link1->collision->geometry;
-*/
-
-
-
 }
 
 
+visualization_msgs::MarkerArray CollisionPF::getMarkers(){
+    visualization_msgs::MarkerArray markerArray;
+    for(int i=0;i<this->meshes_.size();i++){
+        visualization_msgs::Marker marker=this->meshes_.at(i)->getMarker();
+        marker.header.frame_id=this->base_frame_;
+        marker.header.stamp=ros::Time::now();
+        marker.pose.orientation.w=1.0;
+        marker.color.a=1.0;
+        marker.color.b=1.0;
+        markerArray.markers.push_back(marker);
+    }
+    return markerArray;
+}
+
 void CollisionPF::run() {
     while(ros::ok()){
-        rate_->sleep();
+        ros::spinOnce();
+
+        KDL::Frame T;
+        std::vector<ros::Publisher> pub_pc;
+        for(int i=0;i<8;i++){
+            pub_pc.push_back(nh_->advertise<sensor_msgs::PointCloud2>("pcloud"+std::to_string(i),1));
+        }
+
+        KDL::Wrench F_in(KDL::Vector(0.0,10.0,0),KDL::Vector(-05.0,0.0,-0.00));
+        visualization_msgs::MarkerArray markerArray=this->getMarkers();
+        geometry_msgs::PoseArray poseArray;
+
+        for (int i=0;i<8;i++) {
+            geometry_msgs::Pose m;
+            fk_solver_->JntToCart(this->jnt_array_.q, T,i);
+            this->meshes_.at(i)->setPose(T);
+            tf::poseKDLToMsg(T, m);
+            poseArray.poses.push_back(m);
+            markerArray.markers.at(i).pose=m;
+            //this->meshes_.at(i)->getLikelihoods(T.Inverse(F_in),KDL::Wrench());
+            pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
+
+        }
+       // rate_->sleep();
+        poseArray.header.stamp=ros::Time::now();
+        poseArray.header.frame_id="world";
+        pub_marray_.publish(markerArray);
+        pub_poses_.publish(poseArray);
     }
 }

@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   tf2_eigen
   cmake_modules
+  pcl_ros
 )
 
 
@@ -52,6 +53,13 @@ endif()
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen3 REQUIRED)
 find_package(orocos_kdl REQUIRED)
+#find_package(OpenCV REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+#link_directories(${PCL_LIBRARY_DIRS})
+
+
+
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -175,7 +183,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(robot_collision_detection_node src/robot_collision_detection_node.cpp src/CollisionPF.cpp)
+ add_executable(robot_collision_detection_node src/robot_collision_detection_node.cpp src/CollisionPF.cpp src/CollMesh.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -192,7 +200,8 @@ include_directories(
    ${catkin_LIBRARIES}
    ${orocos_kdl_LIBRARIES}
    ${ASSIMP_LIBRARIES}
- )
+   ${PCL_LIBRARIES}
+   )
 set_target_properties(robot_collision_detection_node PROPERTIES COMPILER_FLAGS "${ASSIMP_CXX_FLAGS} ${ASSIMP_CFLAGS_OTHER}")
 set_target_properties(robot_collision_detection_node PROPERTIES LINK_FLAGS "${ASSIMP_LINK_FLAGS}")
 

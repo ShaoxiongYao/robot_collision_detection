@@ -102,7 +102,7 @@ void CollisionPF::run() {
     }
     unsigned seed = ros::Time::now().sec;
     std::default_random_engine generator (seed);
-    std::normal_distribution<double> distribution (0.0,1.0);
+    std::normal_distribution<double> distribution (0.0,0.5);
 
 
     std::vector<double> r(6);
@@ -110,7 +110,7 @@ void CollisionPF::run() {
         ros::spinOnce();
         for (int rr=0;rr<6;rr++){
          r.at(rr)=distribution(generator);
-            if (rr>2) r.at(rr)/=10;
+            if (rr>2) r.at(rr)/=50;
         }
 
         visualization_msgs::MarkerArray markerArray=this->getMarkers();

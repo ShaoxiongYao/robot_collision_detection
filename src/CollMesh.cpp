@@ -15,7 +15,7 @@ CollMesh::CollMesh(aiMesh* in_mesh){
     memcpy((this->ass_mesh_->mVertices),in_mesh->mVertices,sizeof(aiVector3D)*in_mesh->mNumVertices);
     memcpy((this->ass_mesh_->mNormals),in_mesh->mNormals,sizeof(aiVector3D)*in_mesh->mNumFaces);
 */
-init(in_mesh,KDL::Frame());
+    init(in_mesh,KDL::Frame());
 }
 
 void CollMesh::copyMesh(aiMesh* in_mesh,aiMesh* out_mesh){
@@ -48,14 +48,29 @@ void CollMesh::init(aiMesh* in_mesh,KDL::Frame T){
     for(int i=0;i<in_mesh->mNumFaces;i++){
         memcpy(&(this->ass_mesh_.mFaces[i]),&(in_mesh->mFaces[i]),sizeof(aiFace));
         KDL::Vector n1,n2;
-        n1=KDL::Vector(in_mesh->mNormals[i].x,in_mesh->mNormals[i].y,in_mesh->mNormals[i].z);
+        n1=KDL::Vector(in_mesh->mNormals[in_mesh->mFaces[i].mIndices[0]].x,in_mesh->mNormals[in_mesh->mFaces[i].mIndices[0]].y,in_mesh->mNormals[in_mesh->mFaces[i].mIndices[0]].z);
         n2=T.M*n1;
         n2.Normalize();
         this->ass_mesh_.mNormals[i].x=n2.x();
         this->ass_mesh_.mNormals[i].y=n2.y();
         this->ass_mesh_.mNormals[i].z=n2.z();
+//        printf("p=[%f %f %f]\t n=[%f %f %f]\n",
+//               (in_mesh->mVertices[in_mesh->mFaces[i].mIndices[0]].x +
+//                in_mesh->mVertices[in_mesh->mFaces[i].mIndices[1]].x +
+//                in_mesh->mVertices[in_mesh->mFaces[i].mIndices[2]].x) / 3,
+//               (in_mesh->mVertices[in_mesh->mFaces[i].mIndices[0]].y +
+//                in_mesh->mVertices[in_mesh->mFaces[i].mIndices[1]].y +
+//                in_mesh->mVertices[in_mesh->mFaces[i].mIndices[2]].y) / 3,
+//               (in_mesh->mVertices[in_mesh->mFaces[i].mIndices[0]].z +
+//                in_mesh->mVertices[in_mesh->mFaces[i].mIndices[1]].z +
+//                in_mesh->mVertices[in_mesh->mFaces[i].mIndices[2]].z) / 3,
+//               in_mesh->mNormals[in_mesh->mFaces[i].mIndices[0]].x,
+//               in_mesh->mNormals[in_mesh->mFaces[i].mIndices[0]].y,
+//               in_mesh->mNormals[in_mesh->mFaces[i].mIndices[0]].z);
+
+
     }
-    printf("M: %d\n",this->ass_mesh_.mNumVertices);
+    printf("M: %d F: %d\n",this->ass_mesh_.mNumVertices,this->ass_mesh_.mNumFaces);
 
 }
 
@@ -77,23 +92,27 @@ CollMesh::PointCloud::Ptr CollMesh::createPointCloud(aiMesh* in_mesh,std::string
         p.normal_x=in_mesh->mNormals[i].x;
         p.normal_y=in_mesh->mNormals[i].y;
         p.normal_z=in_mesh->mNormals[i].z;
+        p.normal[0]=in_mesh->mNormals[i].x;
+        p.normal[1]=in_mesh->mNormals[i].y;
+        p.normal[2]=in_mesh->mNormals[i].z;
+
         cloud->push_back(p);
     }
     return(cloud);
 }
 
 CollMesh::PointCloud::Ptr CollMesh::getLikelihoods(KDL::Wrench force,KDL::Wrench mask){
-
-
     //TODO: vectors p and n don't change. Do this only once.
     for(int i=0;i<pcloud_->size();i++){
         KDL::Vector t;
-        KDL::Vector n(-pcloud_->at(i).normal_x,-pcloud_->at(i).normal_y,-pcloud_->at(i).normal_z);
+        KDL::Vector n(pcloud_->at(i).normal_x,pcloud_->at(i).normal_y,pcloud_->at(i).normal_z);
         KDL::Vector p(pcloud_->at(i).x,pcloud_->at(i).y,pcloud_->at(i).z);
         //if(KDL::dot(force.force/force.force.Norm(),n)>0.70) {
-            t = (p*force.force) - force.torque; //TODO: Consider normal direction
-            pcloud_->at(i).intensity = exp(-2.5 * KDL::dot(t, t)-5.0*(1+KDL::dot(force.force/force.force.Norm(),n)));
-       // }
+        t = (p*force.force) - force.torque; //TODO: Consider normal direction
+        pcloud_->at(i).intensity = exp(-2.5 * KDL::dot(t, t)-5.0*(1+KDL::dot(force.force/force.force.Norm(),n)));
+
+
+        // }
         //else{
         //    pcloud_->at(i).intensity=0;
         //}
@@ -105,8 +124,8 @@ CollMesh::PointCloud::Ptr CollMesh::getLikelihoods(KDL::Wrench force,KDL::Wrench
 }
 
 CollMesh::CollMesh(std::string mesh_path, urdf::LinkConstSharedPtr link){
-//    const aiScene* scene = this->importer_.ReadFile(mesh_path, aiProcess_SortByPType|aiProcess_Triangulate|aiProcess_GenNormals);
-    const aiScene* scene = this->importer_.ReadFile(mesh_path, aiProcess_GenNormals);
+    //const aiScene* scene = this->importer_.ReadFile(mesh_path,0);
+    const aiScene* scene = this->importer_.ReadFile(mesh_path,aiProcess_JoinIdenticalVertices | aiProcess_Triangulate | aiProcess_GenNormals);
     if( !scene ) {
         fprintf(stderr,"failed to load resource %s",mesh_path.c_str());
         return;
@@ -150,7 +169,7 @@ visualization_msgs::Marker CollMesh::getMarker(){
 }
 sensor_msgs::PointCloud2 CollMesh::getPointCloud(){
     if(this->pcloud_->size()==0) this->pcloud_=createPointCloud(&(this->ass_mesh_),this->link_name_);
-    if(this->pointcloud2_.data.size()==0)    pcl::toROSMsg(*(this->pcloud_),pointcloud2_);
+    pcl::toROSMsg(*(this->pcloud_),pointcloud2_);
     pointcloud2_.header.stamp=ros::Time::now();
     return(pointcloud2_);
 }
@@ -175,7 +194,6 @@ visualization_msgs::Marker CollMesh::createMarker(){
 
         marker_.points.push_back(p);
         marker_.points.push_back(n);
-
         marker_.colors.push_back(colorRGBA);
     }
     marker_.scale.x=0.001;

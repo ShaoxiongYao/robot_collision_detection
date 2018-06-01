@@ -4,7 +4,6 @@
 
 #include <robot_collision_detection/CollisionPF.h>
 
-
 void CollisionPF::load_meshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes){
     std::vector<urdf::LinkConstSharedPtr> links;
     links.push_back(model->getRoot());
@@ -54,17 +53,17 @@ void CollisionPF::init(){
     ros::param::param<double>(ns_+"/frequency", this->freq_, 10.0);
     ros::param::param<std::string>(this->description_param_, robot_description_xml_, "");
 
-    this->jnt_array_.resize(7);
+
+    ROS_INFO("Namespace: [%s]",ns_.c_str());
+    kdl_parser::treeFromParam(this->description_param_,robot_tree_);
+    robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_);
+    this->jnt_array_.resize(this->robot_chain_.getNrOfJoints());
 
     sub_jointstate_=nh_->subscribe(this->joint_states_topic_,1,&CollisionPF::joint_state_callback,this);
     pub_marray_=nh_->advertise<visualization_msgs::MarkerArray>("body_markers",1);
     pub_poses_=nh_->advertise<geometry_msgs::PoseArray>("joint_poses",1);
 
 
-
-    ROS_INFO("Namespace: [%s]",ns_.c_str());
-    kdl_parser::treeFromParam(this->description_param_,robot_tree_);
-    robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_);
     rate_=new ros::Rate(freq_);
 
     urdf_model_ = urdf::parseURDF(robot_description_xml_);
@@ -76,7 +75,7 @@ void CollisionPF::init(){
 }
 void CollisionPF::joint_state_callback(const sensor_msgs::JointState::ConstPtr &msg){
     this->joint_state_=*msg;
-    for(int i=0;i<7;i++){
+    for(int i=0;i<this->robot_chain_.getNrOfJoints();i++){
         this->jnt_array_.q.data[i]=msg->position.at(i);
     }
 }
@@ -97,34 +96,44 @@ visualization_msgs::MarkerArray CollisionPF::getMarkers(){
 }
 
 void CollisionPF::run() {
+    std::vector<ros::Publisher> pub_pc;
+    for(int i=0;i<8;i++){
+        pub_pc.push_back(nh_->advertise<sensor_msgs::PointCloud2>("pcloud"+std::to_string(i),1));
+    }
+    unsigned seed = ros::Time::now().sec;
+    std::default_random_engine generator (seed);
+    std::normal_distribution<double> distribution (0.0,1.0);
+
+
+    std::vector<double> r(6);
     while(ros::ok()){
         ros::spinOnce();
-
-        KDL::Frame T;
-        std::vector<ros::Publisher> pub_pc;
-        for(int i=0;i<8;i++){
-            pub_pc.push_back(nh_->advertise<sensor_msgs::PointCloud2>("pcloud"+std::to_string(i),1));
+        for (int rr=0;rr<6;rr++){
+         r.at(rr)=distribution(generator);
+            if (rr>2) r.at(rr)/=10;
         }
 
-        KDL::Wrench F_in(KDL::Vector(0.0,10.0,0),KDL::Vector(-05.0,0.0,-0.00));
         visualization_msgs::MarkerArray markerArray=this->getMarkers();
         geometry_msgs::PoseArray poseArray;
+        KDL::Wrench F_in(KDL::Vector(0.0+r.at(0),10.0+r.at(1),0+r.at(2)),KDL::Vector(-03.0+r.at(3),0.0+r.at(4),-0.00+r.at(5)));
 
-        for (int i=0;i<8;i++) {
+        for (int i=0;i<this->meshes_.size() ;i++) {
+
+            KDL::Frame T;
             geometry_msgs::Pose m;
             fk_solver_->JntToCart(this->jnt_array_.q, T,i);
             this->meshes_.at(i)->setPose(T);
             tf::poseKDLToMsg(T, m);
             poseArray.poses.push_back(m);
             markerArray.markers.at(i).pose=m;
-            //this->meshes_.at(i)->getLikelihoods(T.Inverse(F_in),KDL::Wrench());
+            this->meshes_.at(i)->getLikelihoods(T.Inverse(F_in),KDL::Wrench());
             pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
-
         }
-       // rate_->sleep();
+
         poseArray.header.stamp=ros::Time::now();
         poseArray.header.frame_id="world";
         pub_marray_.publish(markerArray);
         pub_poses_.publish(poseArray);
+        rate_->sleep();
     }
 }

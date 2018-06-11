@@ -1,0 +1,18 @@
+<launch>
+	
+	<!--arg name="base_frame" default="base_link"/>
+	<arg name="ee_frame" default="ee_link"/>
+	<include file="$(find ur_description)/launch/ur5_upload.launch"/-->
+	
+	<include file="$(find iiwa_description)/launch/iiwa7_upload.launch"/>
+	<arg name="base_frame" default="iiwa_link_0"/>
+	<arg name="ee_frame" default="iiwa_link_ee"/>
+
+
+	<node name="robot_collision_detection" pkg="robot_collision_detection" type="robot_collision_detection_node" output="screen">		
+		<param name="base_frame" type="string" value="$(arg base_frame)"/>
+		<param name="ee_frame" type="string" value="$(arg ee_frame)"/>
+	</node>
+	  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" output="screen"/>
+	  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+</launch>

@@ -18,16 +18,16 @@
 #include <robot_collision_detection/CollMesh.h>
 #include <boost/smart_ptr.hpp>
 #include <sensor_msgs/JointState.h>
-#include <boost/smart_ptr.hpp>
 #include <kdl_conversions/kdl_msg.h>
 #include <geometry_msgs/PoseArray.h>
-
+#include <boost/random.hpp>
+#include <boost/random/random_number_generator.hpp>
 
 class CollisionPF {
 public:
     CollisionPF(){
         nh_=new ros::NodeHandle("~");
-        ns_="robot_collision_detector";
+        ns_=nh_->getNamespace();
         this->init();
     }
     CollisionPF(ros::NodeHandle *nh,std::string ns){

@@ -18,7 +18,9 @@ void CollisionPF::load_meshes(urdf::ModelInterfaceSharedPtr model,std::vector<ur
         if(links.back()->collision!=NULL){
             std::string mesh_path;
             if (links.back()->collision->geometry->type==urdf::Geometry::MESH){
-                urdf::Mesh* mesh= boost::dynamic_pointer_cast<urdf::Mesh>(links.back()->collision->geometry.get());
+                //urdf::Mesh* mesh= boost::dynamic_pointer_cast<urdf::Mesh>(links.back()->collision->geometry.get());
+                std::shared_ptr<urdf::Mesh> mesh= urdf::dynamic_pointer_cast<urdf::Mesh,urdf::Geometry>(links.back()->collision->geometry);
+
                 if (!mesh->filename.substr(0,10).compare("package://")) {
                     std::size_t pos = mesh->filename.substr(10).find("/");
                     mesh_path = ros::package::getPath(mesh->filename.substr(10, pos)) +
@@ -101,8 +103,10 @@ void CollisionPF::run() {
         pub_pc.push_back(nh_->advertise<sensor_msgs::PointCloud2>("pcloud"+std::to_string(i),1));
     }
     unsigned seed = ros::Time::now().sec;
-    std::default_random_engine generator (seed);
-    std::normal_distribution<double> distribution (0.0,0.5);
+
+    //std::default_random_engine generator (seed);
+    boost::random::mt19937 generator (seed);
+    boost::random::normal_distribution<double> distribution (0.0,0.5);
 
 
     std::vector<double> r(6);

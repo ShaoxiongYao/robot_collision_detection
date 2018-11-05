@@ -1,0 +1,11 @@
+<launch>
+    <include file="$(find iiwa_iit)/launch/iiwa_iit_upload.launch">
+    	<arg name="kinect" value="false"/>
+    	<arg name="hand_name" value="probe"/>
+    	<arg name="ft_sensor" value="ft_sensor"/>
+    </include>
+	<node pkg="robot_state_publisher" name="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen"/>
+	<node pkg="joint_state_publisher" name="joint_state_publisher" type="joint_state_publisher" respawn="true" output="screen" args="_use_gui:=true"/>
+	
+	<node pkg="robot_collision_detection" name="robot_collision_detection" type="robot_collision_detection_node" respawn="true" output="screen"/>
+</launch>

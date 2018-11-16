@@ -1,11 +1,18 @@
 <launch>
-    <include file="$(find iiwa_iit)/launch/iiwa_iit_upload.launch">
+
+    <!--include file="$(find iiwa_iit)/launch/iiwa_iit_upload.launch">
     	<arg name="kinect" value="false"/>
     	<arg name="hand_name" value="probe"/>
     	<arg name="ft_sensor" value="ft_sensor"/>
-    </include>
+    </include-->
+
+    <include file="$(find ur_description)/launch/ur5_upload.launch"/>
+
 	<node pkg="robot_state_publisher" name="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen"/>
 	<node pkg="joint_state_publisher" name="joint_state_publisher" type="joint_state_publisher" respawn="true" output="screen" args="_use_gui:=true"/>
 	
-	<node pkg="robot_collision_detection" name="robot_collision_detection" type="robot_collision_detection_node" respawn="true" output="screen"/>
+	<node pkg="robot_collision_detection" name="robot_collision_detection" type="robot_collision_detection_node" respawn="false" output="screen">
+	<!--rosparam command="load" file="$(find robot_collision_detection)/config/config_collision_iiwa.yaml"/-->
+	<rosparam command="load" file="$(find robot_collision_detection)/config/config_collision_ur5.yaml"/>
+	</node>
 </launch>

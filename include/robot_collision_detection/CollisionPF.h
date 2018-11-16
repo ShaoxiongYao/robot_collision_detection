@@ -27,7 +27,7 @@ class CollisionPF {
 public:
     CollisionPF(){
         nh_=new ros::NodeHandle("~");
-        ns_="robot_collision_detector";
+        ns_= nh_->getNamespace();
         this->init();
     }
     CollisionPF(ros::NodeHandle *nh,std::string ns){
@@ -57,8 +57,10 @@ protected:
     double freq_;
 
     void init();
-    void load_meshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
-    void joint_state_callback(const sensor_msgs::JointState::ConstPtr &msg);
+    void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
+    void setSensors();
+    void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
+
 };
 
 

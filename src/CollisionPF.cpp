@@ -57,6 +57,56 @@ void CollisionPF::setSensors(){
 
 }
 
+CollMesh::PointCloud::Ptr CollisionPF::particlesToPointCloud(std::vector<CollisionPF::Particle> part){
+    CollMesh::PointCloud::Ptr cloud(new CollMesh::PointCloud);
+    cloud->header.frame_id= this->base_frame_;
+    cloud->reserve(part.size());
+    std::vector<Eigen::Affine3d> T;
+    T.resize(this->meshes_.size()); // TODO: define number of sensors elsewhere
+    for (unsigned long i=0;i<T.size();i++) {
+        tf::transformKDLToEigen(this->meshes_.at(i)->getPose(), T.at(i));
+    }
+
+    for (unsigned long i=0;i<part.size();i++){
+
+        Eigen::Vector3d n_r(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_x,
+                            this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_y,
+                            this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_z);
+
+        CollMesh::PType p(pcl::transformPoint(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),T.at(part.at(i).n)));
+
+        n_r=T.at(part.at(i).n).rotation()*n_r;
+        p.normal_x=n_r[0];p.normal_y=n_r[1];p.normal_z=n_r[2]; //TODO: pcl::transformPointWithNormal(p,T.at(part.at(i).n));
+
+        p.intensity=part.at(i).w;
+        cloud->push_back(p);
+    }
+    return(cloud);
+}
+
+bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> part, std::vector<KDL::Wrench> forces){
+    if(this->meshes_.size() != forces.size()) {
+        ROS_ERROR("Invalid size of measurements");
+        return false;
+    }
+
+    float eta=0;
+    std::vector<float> _bel(part.size());
+
+    for(unsigned long i=0;i<part.size();i++){
+        float bel=1.0;
+
+    }
+
+
+    for(unsigned long i=0;i<part.size();i++){
+        part.at(i).w=_bel.at(i)/eta; //normalise
+    }
+
+
+}
+
+
 void CollisionPF::init(){
     ros::param::param<std::string>(ns_+"/robot_description_param", this->description_param_, "/robot_description");
     ros::param::param<std::string>(ns_+"/joint_states_topic", this->joint_states_topic_, "/joint_states");
@@ -108,6 +158,7 @@ visualization_msgs::MarkerArray CollisionPF::getMarkers(){
     return markerArray;
 }
 
+
 void CollisionPF::run() {
     std::vector<ros::Publisher> pub_pc;
     for(int i=0;i<8;i++){
@@ -121,25 +172,17 @@ void CollisionPF::run() {
     std::vector<double> r(6);
     while(ros::ok()){
         ros::spinOnce();
-        for (unsigned long rr=0;rr<6;rr++){
+      /*  for (unsigned long rr=0;rr<6;rr++){
          r.at(rr)=distribution(generator);
             if (rr>2) r.at(rr)/=50;
         }
 
-        visualization_msgs::MarkerArray markerArray=this->getMarkers();
-        geometry_msgs::PoseArray poseArray;
         KDL::Wrench F_in(KDL::Vector(0.0+r.at(0),10.0+r.at(1),0+r.at(2)),KDL::Vector(-03.0+r.at(3),0.0+r.at(4),-0.00+r.at(5)));
+
+
 
         for (unsigned long i=0;i<this->meshes_.size() ;i++) {
 
-            KDL::Frame T;
-            geometry_msgs::Pose m;
-            fk_solver_->JntToCart(this->jnt_array_.q, T,i);
-
-            this->meshes_.at(i)->setPose(T);
-            tf::poseKDLToMsg(T, m);
-            poseArray.poses.push_back(m);
-            markerArray.markers.at(i).pose=m;
 
             std::vector<KDL::Wrench> forces(this->meshes_.at(i)->pcloud_->size(),T.Inverse(F_in));
             std::vector<float> likelihoods;
@@ -147,7 +190,10 @@ void CollisionPF::run() {
             this->meshes_.at(i)->getLikelihoods(forces,this->meshes_.at(i)->pcloud_,forces.at(0),likelihoods);
             this->meshes_.at(i)->setPointCloudIntensity(likelihoods);
 
-            pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
+            //pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
+
+
+
 
             CollMesh::PType p;
             p.x=0.01;
@@ -158,11 +204,48 @@ void CollisionPF::run() {
             this->meshes_.at(i)->getNearestK(1,p);
 
         }
+*/
+
+        // Testing parts:
+        std::srand(std::time(nullptr)); // use current time as seed for random generator
+        std::vector<CollisionPF::Particle> parts;
+        parts.resize(1000);
+        for(unsigned long i=0;i<parts.size();i++){
+            parts.at(i).n=(int) std::rand()/(RAND_MAX/7);
+            parts.at(i).p=(int) std::rand()/(RAND_MAX/this->meshes_.at(parts.at(i).n)->getMeshSize());
+            parts.at(i).F=10.0;
+            parts.at(i).K=100.0;
+            parts.at(i).w= (parts.at(i).n/6.0);
+        }
+
+        CollMesh::PointCloud::Ptr pc(this->particlesToPointCloud(parts));
+
+        sensor_msgs::PointCloud2 pointCloud2;
+
+        pcl::toROSMsg(*pc,pointCloud2);
+
+        pub_pc.at(0).publish(pointCloud2);
+
+        visualization_msgs::MarkerArray markerArray=this->getMarkers();
+        geometry_msgs::PoseArray poseArray;
+
+
+        for (unsigned long i=0;i<this->meshes_.size() ;i++) {
+            KDL::Frame T;
+            geometry_msgs::Pose m;
+            fk_solver_->JntToCart(this->jnt_array_.q, T,i);
+            this->meshes_.at(i)->setPose(T);
+            tf::poseKDLToMsg(T, m);
+            poseArray.poses.push_back(m);
+            markerArray.markers.at(i).pose=m;
+        }
+
 
         poseArray.header.stamp=ros::Time::now();
         poseArray.header.frame_id=this->base_frame_;
         pub_marray_.publish(markerArray);
         pub_poses_.publish(poseArray);
+
         rate_->sleep();
     }
 }

@@ -25,6 +25,14 @@ void CollMesh::copyMesh(aiMesh* in_mesh,aiMesh* out_mesh){
 void CollMesh::setPose(KDL::Frame in){
     this->pose_=in;
 }
+KDL::Frame CollMesh::getPose(){
+    return(this->pose_);
+}
+
+unsigned int CollMesh::getMeshSize(){
+    return this->pcloud_->width; //TODO: get size of mesh from elsewhere
+}
+
 void CollMesh::init(aiMesh* in_mesh,KDL::Frame T){
 
     this->ass_mesh_.mNumFaces=in_mesh->mNumFaces;
@@ -117,6 +125,19 @@ bool CollMesh::getLikelihoods(std::vector<KDL::Wrench> force, PointCloud::Ptr po
         likelihood.at(i)=exp(-cost);
     }
 }
+
+float CollMesh::getLikelihood(KDL::Wrench force, int idx) {
+    KDL::Vector fn(force.force/force.force.Norm());
+    float likelihood;
+    float cost=0;
+    KDL::Wrench t= this->ForceToMeasurement(this->pcloud_->at(idx),force.force,0);
+    cost+=0.25*(force-t).force.Norm();
+    cost+=2.5*(force-t).torque.Norm();
+    cost+=0.5*(1+KDL::dot(fn,KDL::Vector(this->pcloud_->at(idx).normal_x,this->pcloud_->at(idx).normal_y,this->pcloud_->at(idx).normal_z)));
+    likelihood=exp(-cost);
+    return likelihood;
+}
+
 
 void CollMesh::setPointCloudIntensity(std::vector<float> intensities){
     for (unsigned  long i=0;i<intensities.size();i++){

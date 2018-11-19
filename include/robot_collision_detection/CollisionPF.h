@@ -20,10 +20,19 @@
 #include <sensor_msgs/JointState.h>
 #include <boost/smart_ptr.hpp>
 #include <kdl_conversions/kdl_msg.h>
+#include <eigen_conversions/eigen_kdl.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/PoseArray.h>
 
 
 class CollisionPF {
+    struct Particle{
+        int n;
+        int p;
+        float F;
+        float K;
+        float w;
+    };
 public:
     CollisionPF(){
         nh_=new ros::NodeHandle("~");
@@ -38,7 +47,7 @@ public:
 
     void run();
     visualization_msgs::MarkerArray getMarkers();
-
+    CollMesh::PointCloud::Ptr particlesToPointCloud(std::vector<CollisionPF::Particle> part);
 
 protected:
     ros::NodeHandle* nh_;
@@ -59,6 +68,7 @@ protected:
     void init();
     void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
     void setSensors();
+    bool measurementModel(std::vector<CollisionPF::Particle> part, std::vector<KDL::Wrench> forces);
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
 
 };

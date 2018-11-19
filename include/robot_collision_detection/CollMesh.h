@@ -29,8 +29,11 @@ public:
     sensor_msgs::PointCloud2 getPointCloud();
     aiMesh* getMesh();
     bool getLikelihoods(std::vector<KDL::Wrench> force, PointCloud::Ptr points, KDL::Wrench force_meas,std::vector<float> &likelihood);
+    float getLikelihood(KDL::Wrench force, int idx);
     std::string link_name_;
     void setPose(KDL::Frame in);
+    KDL::Frame getPose();
+    unsigned int getMeshSize();
     bool getNearestK(int K,PType p);
     void setPointCloudIntensity(std::vector<float> intensities);
 

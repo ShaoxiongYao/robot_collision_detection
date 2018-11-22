@@ -62,13 +62,14 @@ protected:
     ros::Rate* rate_;
     std::vector<boost::shared_ptr<CollMesh> > meshes_;
     boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
+    std::vector<int> sensor_types;
 
     double freq_;
 
     void init();
     void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
     void setSensors();
-    bool measurementModel(std::vector<CollisionPF::Particle> part, std::vector<KDL::Wrench> forces);
+    bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces);
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
 
 };

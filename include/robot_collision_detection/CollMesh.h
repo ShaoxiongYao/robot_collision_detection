@@ -29,13 +29,14 @@ public:
     sensor_msgs::PointCloud2 getPointCloud();
     aiMesh* getMesh();
     bool getLikelihoods(std::vector<KDL::Wrench> force, PointCloud::Ptr points, KDL::Wrench force_meas,std::vector<float> &likelihood);
-    float getLikelihood(KDL::Wrench force, int idx);
+    float getLikelihood(KDL::Wrench force, KDL::Wrench force_meas, int idx);
     std::string link_name_;
     void setPose(KDL::Frame in);
     KDL::Frame getPose();
     unsigned int getMeshSize();
     bool getNearestK(int K,PType p);
     void setPointCloudIntensity(std::vector<float> intensities);
+    KDL::Wrench ForceToMeasurement(PType p,KDL::Vector f, float local_torque);
 
    //make protected
     KDL::Wrench mask_;
@@ -49,7 +50,6 @@ protected:
     sensor_msgs::PointCloud2 pointcloud2_;
     std::vector<KDL::Vector> normals_kdl_, points_kdl_;
     pcl::KdTreeFLANN<PType> kdtree_;
-    inline KDL::Wrench ForceToMeasurement(PType p,KDL::Vector f, float local_torque);
 
     void init(aiMesh* in_mesh,KDL::Frame T);
     void copyMesh(aiMesh* in_mesh,aiMesh* out_mesh);

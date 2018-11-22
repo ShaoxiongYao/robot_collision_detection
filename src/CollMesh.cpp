@@ -98,7 +98,7 @@ CollMesh::PointCloud::Ptr CollMesh::createPointCloud(aiMesh* in_mesh,const std::
     return(cloud);
 }
 
-inline KDL::Wrench CollMesh::ForceToMeasurement(PType p, KDL::Vector f, float local_torque) {
+KDL::Wrench CollMesh::ForceToMeasurement(PType p, KDL::Vector f, float local_torque) {
     KDL::Wrench result;
     KDL::Vector r(p.x,p.y,p.z);
     result.force=f;
@@ -126,13 +126,13 @@ bool CollMesh::getLikelihoods(std::vector<KDL::Wrench> force, PointCloud::Ptr po
     }
 }
 
-float CollMesh::getLikelihood(KDL::Wrench force, int idx) {
+float CollMesh::getLikelihood(KDL::Wrench force, KDL::Wrench force_meas, int idx) {
     KDL::Vector fn(force.force/force.force.Norm());
     float likelihood;
     float cost=0;
     KDL::Wrench t= this->ForceToMeasurement(this->pcloud_->at(idx),force.force,0);
-    cost+=0.25*(force-t).force.Norm();
-    cost+=2.5*(force-t).torque.Norm();
+    cost+=0.25*(force_meas-t).force.Norm();
+    cost+=2.5*(force_meas-t).torque.Norm();
     cost+=0.5*(1+KDL::dot(fn,KDL::Vector(this->pcloud_->at(idx).normal_x,this->pcloud_->at(idx).normal_y,this->pcloud_->at(idx).normal_z)));
     likelihood=exp(-cost);
     return likelihood;

@@ -107,20 +107,19 @@ KDL::Wrench CollMesh::ForceToMeasurement(PType p, KDL::Vector f, float local_tor
     return KDL::Wrench(
             KDL::Vector(result.force.x() * mask_.force.x(), result.force.y() * mask_.force.y(),
                         result.force.z() * mask_.force.z()),
-            KDL::Vector(result.torque.x() * mask_.force.x(), result.torque.y() * mask_.force.y(),
-                        result.torque.z() * mask_.force.z())
+            KDL::Vector(result.torque.x() * mask_.torque.x(), result.torque.y() * mask_.torque.y(),
+                        result.torque.z() * mask_.torque.z())
     );
 }
 
 
 KDL::Wrench CollMesh::ForceToMeasurement(KDL::Wrench f_global) {
     KDL::Wrench result=this->pose_.Inverse(f_global);
-
     return KDL::Wrench(
             KDL::Vector(result.force.x() * mask_.force.x(), result.force.y() * mask_.force.y(),
                         result.force.z() * mask_.force.z()),
-            KDL::Vector(result.torque.x() * mask_.force.x(), result.torque.y() * mask_.force.y(),
-                        result.torque.z() * mask_.force.z())
+            KDL::Vector(result.torque.x() * mask_.torque.x(), result.torque.y() * mask_.torque.y(),
+                        result.torque.z() * mask_.torque.z())
     );
 
 }

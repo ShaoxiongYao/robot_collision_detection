@@ -216,7 +216,7 @@ bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std
 
             KDL::Wrench diff=f_part-forces.at(j);
             double cost=diff.force.Norm()+diff.torque.Norm();
-            bel*=exp(-0.5*cost);
+            bel*=exp(-0.01*cost);
             //if (exp(-cost)>0.9) ROS_INFO("%d %f",i, exp(-cost));
         }
         _bel.at(i)=bel*part.at(i).w;
@@ -299,9 +299,9 @@ void CollisionPF::run() {
 
     std::srand(std::time(nullptr)); // use current time as seed for random generator
     std::vector<CollisionPF::Particle> parts;
-    parts.resize(1000);
+    parts.resize(10000);
     for(unsigned long i=0;i<parts.size();i++){
-        parts.at(i).n=(int) std::rand()/(RAND_MAX/3);//std::rand()/(RAND_MAX/this->meshes_.size());
+        parts.at(i).n=(int) std::rand()/(RAND_MAX/this->meshes_.size());
         parts.at(i).p=(int) std::rand()/(RAND_MAX/(this->meshes_.at(parts.at(i).n)->getMeshSize()-1));
         parts.at(i).F=10.0*std::rand()/(RAND_MAX);
         parts.at(i).K=100.0;
@@ -310,7 +310,7 @@ void CollisionPF::run() {
 
     std::vector<double> std_devs(3);
     std_devs.at(0)=0.10;
-    std_devs.at(1)=0.01;
+    std_devs.at(1)=0.001;
     std_devs.at(2)=50.0;
 
 
@@ -353,8 +353,8 @@ void CollisionPF::run() {
         // Testing parts:
         std::vector<KDL::Wrench> measurements;
         measurements.push_back(KDL::Wrench(KDL::Vector(0.0,0.0,0),KDL::Vector(0.0,0.0,0.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,01.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,-02.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,02.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));

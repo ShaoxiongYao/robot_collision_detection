@@ -34,9 +34,12 @@ public:
     void setPose(KDL::Frame in);
     KDL::Frame getPose();
     unsigned int getMeshSize();
-    bool getNearestK(int K,PType p);
+    PointCloud::Ptr  getNearestK(int K,PType p);
+    std::vector<int> getPointsInRadius(PType p,double radius);
     void setPointCloudIntensity(std::vector<float> intensities);
     KDL::Wrench ForceToMeasurement(PType p,KDL::Vector f, float local_torque);
+    KDL::Wrench ForceToMeasurement(KDL::Wrench f_global);
+    KDL::Wrench ForceAtPoint(unsigned long idx, double F, float local_torque);
 
    //make protected
     KDL::Wrench mask_;

@@ -105,6 +105,63 @@ CollMesh::PointCloud::Ptr CollisionPF::particlesToPointCloud(std::vector<Collisi
     return(cloud);
 }
 
+
+std::vector<CollisionPF::Particle> CollisionPF::addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev){
+    std::vector<CollisionPF::Particle> out(part.size());
+    std::mt19937 mt_rand(time(0));
+
+    std::normal_distribution<double> rand_F(0,std_dev.at(0));
+    std::normal_distribution<double> rand_K(0,std_dev.at(2));
+
+
+    for (unsigned long i=0;i<part.size();i++){
+        out.at(i).n=part.at(i).n;
+        out.at(i).F=part.at(i).F+rand_F(mt_rand);
+
+        std::vector<int> idx=this->meshes_.at(part.at(i).n)->getPointsInRadius(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),std_dev.at(1));
+        out.at(i).p=idx.at(mt_rand()%(idx.size())); //Random between 0 and idx.size()
+
+        part.at(i).K=part.at(i).K+rand_K(mt_rand);
+        out.at(i).w=part.at(i).w;
+    }
+    return (out);
+
+}
+
+
+std::vector<CollisionPF::Particle> CollisionPF::resampleParts(std::vector<CollisionPF::Particle> part,double percentage){
+    //std::vector<CollisionPF::Particle> out(part.begin(),part.begin()+(part.size()*std::ceil(part.size()*percentage)));
+    std::vector<CollisionPF::Particle> out(std::ceil(part.size()*percentage));
+    std::mt19937 mt_rand(time(0));
+
+    std::vector<unsigned long> r(out.size());
+    std::generate(r.begin(), r.end(), mt_rand);
+    std::sort(r.begin(),r.end());
+    unsigned long max=std::mt19937::max();
+    unsigned long sum=part.begin()->w*max;
+    unsigned long i=1,k=0;
+    while (k<out.size() && i<part.size()){
+        if(sum>r.at(k)){
+            out.at(k)=part.at(i-1);
+            k++;
+        }
+        else{
+            sum+=part.at(i).w*max;
+            i++;
+        }
+    }
+//    std::vector<int> hist(part.size()+1);
+//    for (int i=0;i<out.size();i++){
+//        hist.at(out.at(i).n)++;
+//    }
+//    for (int i=0;i<hist.size();i++){
+//        ROS_WARN("%d: %d",i,hist.at(i));
+//    }
+
+    return out;
+}
+
+
 bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces){
     if(this->meshes_.size() != forces.size()) {
         ROS_ERROR("Invalid size of measurements");
@@ -122,15 +179,23 @@ bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std
     }
     for(unsigned long i=0;i<part.size();i++){
         double bel=1.0;
-        KDL::Wrench f=this->meshes_.at(part.at(i).n)->getPose()*KDL::Wrench(KDL::Vector(-this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_x,
-                                  -this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_y,
-                                  -this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_z)*part.at(i).F,KDL::Vector(0,0,0));
+        //KDL::Wrench f=this->meshes_.at(part.at(i).n)->getPose()*KDL::Wrench(KDL::Vector(-this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_x,
+        //                                                                                -this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_y,
+        //                                                                                -this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_z)*part.at(i).F,
+        //                                                                    KDL::Vector(0,0,0));
+
+
+
+        KDL::Wrench f=this->meshes_.at(part.at(i).n)->getPose()*this->meshes_.at(part.at(i).n)->ForceAtPoint(part.at(i).p,part.at(i).F,0.0);
 
 
         for(unsigned long j=0;j<forces.size();j++){
-
+            KDL::Wrench f_part;
             if (part.at(i).n>=j){
-                Eigen::Vector3d n_r(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_x,
+
+                f_part=this->meshes_.at(j)->ForceToMeasurement(f);
+
+          /*      Eigen::Vector3d n_r(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_x,
                                     this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_y,
                                     this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_z);
                 //CollMesh::PType p(pcl::transformPoint(this->meshes_.at(part.at(i).n)->pcloud_->points.at(part.at(i).p),T.at(part.at(i).n)));
@@ -138,37 +203,35 @@ bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std
                 n_r=T.at(part.at(i).n).rotation()*n_r;
                 p.normal_x=n_r[0];p.normal_y=n_r[1];p.normal_z=n_r[2]; //TODO: pcl::transformPointWithNormal(p,T.at(part.at(i).n));
 
-
                 CollMesh::PType p_local(pcl::transformPoint(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),T.at(j).inverse()));
                 KDL::Wrench f_local=this->meshes_.at(part.at(i).n)->getPose().Inverse(f);
 
                 KDL::Wrench f_part=this->meshes_.at(j)->ForceToMeasurement(p_local,f_local.force,0);
-
-
-
-
-                KDL::Wrench diff=f_part-forces.at(j);
-                double cost=diff.force.Norm()+diff.torque.Norm();
-                bel*=exp(-cost);
-                ROS_INFO("%f",exp(-cost));
-
+*/
             }
             else{
+                f_part=KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0));
                 //A force here creates no torque in joint j
             }
+
+            KDL::Wrench diff=f_part-forces.at(j);
+            double cost=diff.force.Norm()+diff.torque.Norm();
+            bel*=exp(-0.5*cost);
+            //if (exp(-cost)>0.9) ROS_INFO("%d %f",i, exp(-cost));
         }
         _bel.at(i)=bel*part.at(i).w;
         eta+=_bel.at(i);
     }
 
 
+    double debug_sum=0;
+
     for(unsigned long i=0;i<part.size();i++){
         part.at(i).w=_bel.at(i)/eta; //normalise
+        debug_sum+=part.at(i).w;
     }
-
-
+    //ROS_WARN("sum: %f = 1.0?",debug_sum );
 }
-
 
 void CollisionPF::init(){
     ros::param::param<std::string>(ns_+"/robot_description_param", this->description_param_, "/robot_description");
@@ -210,7 +273,6 @@ void CollisionPF::jointStateCallback(const sensor_msgs::JointState::ConstPtr &ms
     }
 }
 
-
 visualization_msgs::MarkerArray CollisionPF::getMarkers(){
     visualization_msgs::MarkerArray markerArray;
     for(int i=0;i<this->meshes_.size();i++){
@@ -225,7 +287,6 @@ visualization_msgs::MarkerArray CollisionPF::getMarkers(){
     return markerArray;
 }
 
-
 void CollisionPF::run() {
     std::vector<ros::Publisher> pub_pc;
     for(int i=0;i<8;i++){
@@ -238,59 +299,62 @@ void CollisionPF::run() {
 
     std::srand(std::time(nullptr)); // use current time as seed for random generator
     std::vector<CollisionPF::Particle> parts;
-    parts.resize(5000);
+    parts.resize(1000);
     for(unsigned long i=0;i<parts.size();i++){
         parts.at(i).n=(int) std::rand()/(RAND_MAX/3);//std::rand()/(RAND_MAX/this->meshes_.size());
         parts.at(i).p=(int) std::rand()/(RAND_MAX/(this->meshes_.at(parts.at(i).n)->getMeshSize()-1));
-        parts.at(i).F=10.0;
+        parts.at(i).F=10.0*std::rand()/(RAND_MAX);
         parts.at(i).K=100.0;
         parts.at(i).w=0.01;
     }
 
-
+    std::vector<double> std_devs(3);
+    std_devs.at(0)=0.10;
+    std_devs.at(1)=0.01;
+    std_devs.at(2)=50.0;
 
 
     while(ros::ok()){
         ros::spinOnce();
-      /*  for (unsigned long rr=0;rr<6;rr++){
-         r.at(rr)=distribution(generator);
-            if (rr>2) r.at(rr)/=50;
-        }
+        /*  for (unsigned long rr=0;rr<6;rr++){
+           r.at(rr)=distribution(generator);
+              if (rr>2) r.at(rr)/=50;
+          }
 
-        KDL::Wrench F_in(KDL::Vector(0.0+r.at(0),10.0+r.at(1),0+r.at(2)),KDL::Vector(-03.0+r.at(3),0.0+r.at(4),-0.00+r.at(5)));
-
-
-
-        for (unsigned long i=0;i<this->meshes_.size() ;i++) {
-
-
-            std::vector<KDL::Wrench> forces(this->meshes_.at(i)->pcloud_->size(),T.Inverse(F_in));
-            std::vector<float> likelihoods;
-            likelihoods.resize(this->meshes_.at(i)->pcloud_->size());
-            this->meshes_.at(i)->getLikelihoods(forces,this->meshes_.at(i)->pcloud_,forces.at(0),likelihoods);
-            this->meshes_.at(i)->setPointCloudIntensity(likelihoods);
-
-            //pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
+          KDL::Wrench F_in(KDL::Vector(0.0+r.at(0),10.0+r.at(1),0+r.at(2)),KDL::Vector(-03.0+r.at(3),0.0+r.at(4),-0.00+r.at(5)));
 
 
 
+          for (unsigned long i=0;i<this->meshes_.size() ;i++) {
 
-            CollMesh::PType p;
-            p.x=0.01;
-            p.y=0.01;
-            p.z=0.1;
-            p.normal_x=1.0;
 
-            this->meshes_.at(i)->getNearestK(1,p);
+              std::vector<KDL::Wrench> forces(this->meshes_.at(i)->pcloud_->size(),T.Inverse(F_in));
+              std::vector<float> likelihoods;
+              likelihoods.resize(this->meshes_.at(i)->pcloud_->size());
+              this->meshes_.at(i)->getLikelihoods(forces,this->meshes_.at(i)->pcloud_,forces.at(0),likelihoods);
+              this->meshes_.at(i)->setPointCloudIntensity(likelihoods);
 
-        }
-*/
+              //pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
+
+
+
+
+              CollMesh::PType p;
+              p.x=0.01;
+              p.y=0.01;
+              p.z=0.1;
+              p.normal_x=1.0;
+
+              this->meshes_.at(i)->getNearestK(1,p);
+
+          }
+  */
 
         // Testing parts:
         std::vector<KDL::Wrench> measurements;
-        measurements.push_back(KDL::Wrench(KDL::Vector(-10.0,0,0),KDL::Vector(0,-0.5,0.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0.0,0.0,0),KDL::Vector(0.0,0.0,0.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,01.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,-02.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
@@ -300,6 +364,8 @@ void CollisionPF::run() {
 
         this->measurementModel(parts,measurements);
         CollMesh::PointCloud::Ptr pc(this->particlesToPointCloud(parts));
+        parts=this->resampleParts(parts,1.0);
+        parts=this->addNoise(parts,std_devs);
 
         sensor_msgs::PointCloud2 pointCloud2;
 

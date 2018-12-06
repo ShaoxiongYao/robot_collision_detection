@@ -23,17 +23,18 @@
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/PoseArray.h>
+#include <random>
 
 
 class CollisionPF {
+public:
     struct Particle{
         int n;
         int p;
-        float F;
-        float K;
-        float w;
+        double F;
+        double K;
+        double w;
     };
-public:
     CollisionPF(){
         nh_=new ros::NodeHandle("~");
         ns_= nh_->getNamespace();
@@ -71,6 +72,9 @@ protected:
     void setSensors();
     bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces);
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
+
+    std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);
+    std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
 
 };
 

@@ -112,6 +112,26 @@ KDL::Wrench CollMesh::ForceToMeasurement(PType p, KDL::Vector f, float local_tor
     );
 }
 
+
+KDL::Wrench CollMesh::ForceToMeasurement(KDL::Wrench f_global) {
+    KDL::Wrench result=this->pose_.Inverse(f_global);
+
+    return KDL::Wrench(
+            KDL::Vector(result.force.x() * mask_.force.x(), result.force.y() * mask_.force.y(),
+                        result.force.z() * mask_.force.z()),
+            KDL::Vector(result.torque.x() * mask_.force.x(), result.torque.y() * mask_.force.y(),
+                        result.torque.z() * mask_.force.z())
+    );
+
+}
+
+
+KDL::Wrench CollMesh::ForceAtPoint(unsigned long idx, double F, float local_torque) {
+    KDL::Vector f(-F*normals_kdl_.at(idx));
+    return KDL::Wrench(f, points_kdl_.at(idx)*f);
+}
+
+
 bool CollMesh::getLikelihoods(std::vector<KDL::Wrench> force, PointCloud::Ptr points, KDL::Wrench force_meas,std::vector<float> &likelihood) {
     KDL::Vector fn(force_meas.force/force_meas.force.Norm());
     if(force.size()!=points->size() || force.size()!=likelihood.size()) return false;
@@ -216,18 +236,34 @@ sensor_msgs::PointCloud2 CollMesh::getPointCloud(){
     return(pointcloud2_);
 }
 
-bool CollMesh::getNearestK(int K, PType p) {
+CollMesh::PointCloud::Ptr CollMesh::getNearestK(int K, PType p) {
     std::vector<int> pointIdxNKNSearch(K);
     std::vector<float> pointNKNSquaredDistance(K);
+    CollMesh::PointCloud::Ptr cloud(new CollMesh::PointCloud);
 
     if(this->kdtree_.nearestKSearch(p,K,pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
-        //for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
+        for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i){
+            cloud->push_back(this->pcloud_->points[pointIdxNKNSearch[i]]);
+        }
         //ROS_ERROR_STREAM("    "  <<   this->pcloud_->points[ pointIdxNKNSearch[i] ].x
         //                         << " " << this->pcloud_->points[ pointIdxNKNSearch[i] ].y
         //                         << " " << this->pcloud_->points[ pointIdxNKNSearch[i] ].z
         //                         << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl);
     }
+    return(cloud);
+
 }
+
+std::vector<int> CollMesh::getPointsInRadius(PType p,double radius) {
+    std::vector<int> pointIdxRadiusSearch;
+    std::vector<float> pointRadiusSquaredDistance;
+
+    kdtree_.radiusSearch (p, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+    return(pointIdxRadiusSearch);
+}
+
+
+
 
 visualization_msgs::Marker CollMesh::createMarker(){
 

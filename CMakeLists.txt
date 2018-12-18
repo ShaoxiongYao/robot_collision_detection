@@ -11,6 +11,7 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   roslib
   kdl_conversions
+  eigen_conversions
   kdl_parser
   roscpp
   rospy
@@ -151,7 +152,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES robot_collision_detection
-  CATKIN_DEPENDS kdl_conversions kdl_parser roscpp rospy tf2 urdf cmake_modules
+  CATKIN_DEPENDS kdl_conversions eigen_conversions kdl_parser roscpp rospy tf2 urdf cmake_modules
   DEPENDS orocos_kdl ASSIMP
 )
 
@@ -202,9 +203,22 @@ include_directories(
    ${orocos_kdl_LIBRARIES}
    ${ASSIMP_LIBRARIES}
    ${PCL_LIBRARIES}
+   ${EIGEN3_LIBRARIES}
    )
 set_target_properties(robot_collision_detection_node PROPERTIES COMPILER_FLAGS "${ASSIMP_CXX_FLAGS} ${ASSIMP_CFLAGS_OTHER}")
 set_target_properties(robot_collision_detection_node PROPERTIES LINK_FLAGS "${ASSIMP_LINK_FLAGS}")
+
+add_executable(robot_controller src/robot_control_main.cpp src/RobotController.cpp)
+add_dependencies(robot_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(robot_controller
+        ${catkin_LIBRARIES}
+        ${orocos_kdl_LIBRARIES}
+        ${ASSIMP_LIBRARIES}
+        ${PCL_LIBRARIES}
+        ${EIGEN3_LIBRARIES}
+        )
+
+
 
 #############
 ## Install ##

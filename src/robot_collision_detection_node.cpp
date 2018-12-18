@@ -9,10 +9,8 @@ int main(int argc, char** argv) {
 
     ros::init(argc, argv, "robot_collision_detection");
 
-    ROS_INFO("CC");
-
-    CollisionPF col;
-    col.run();
+    CollisionPF* col = new CollisionPF();
+    col->run();
 
     return 0;
 }

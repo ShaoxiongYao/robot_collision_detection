@@ -52,6 +52,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>roslib</buildtool_depend>
   <build_depend>kdl_conversions</build_depend>
+  <build_depend>eigen_conversions</build_depend>
   <build_depend>kdl_parser</build_depend>
   <build_depend>orocos_kdl</build_depend>
   <build_depend>roscpp</build_depend>
@@ -65,6 +66,7 @@
 
   <build_export_depend>roslib</build_export_depend>
   <build_export_depend>kdl_conversions</build_export_depend>
+  <build_export_depend>eigen_conversions</build_export_depend>
   <build_export_depend>kdl_parser</build_export_depend>
   <build_export_depend>orocos_kdl</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
@@ -77,6 +79,7 @@
 
   <exec_depend>roslib</exec_depend>
   <exec_depend>kdl_conversions</exec_depend>
+  <exec_depend>eigen_conversions</exec_depend>
   <exec_depend>kdl_parser</exec_depend>
   <exec_depend>orocos_kdl</exec_depend>
   <exec_depend>roscpp</exec_depend>

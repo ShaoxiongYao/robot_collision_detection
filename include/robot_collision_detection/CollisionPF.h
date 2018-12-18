@@ -19,15 +19,25 @@
 #include <boost/smart_ptr.hpp>
 #include <sensor_msgs/JointState.h>
 #include <kdl_conversions/kdl_msg.h>
+#include <eigen_conversions/eigen_kdl.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/PoseArray.h>
 #include <boost/random.hpp>
 #include <boost/random/random_number_generator.hpp>
+#include <random>
 
 class CollisionPF {
 public:
+    struct Particle{
+        int n;
+        int p;
+        double F;
+        double K;
+        double w;
+    };
     CollisionPF(){
         nh_=new ros::NodeHandle("~");
-        ns_=nh_->getNamespace();
+        ns_= nh_->getNamespace();
         this->init();
     }
     CollisionPF(ros::NodeHandle *nh,std::string ns){
@@ -38,7 +48,7 @@ public:
 
     void run();
     visualization_msgs::MarkerArray getMarkers();
-
+    CollMesh::PointCloud::Ptr particlesToPointCloud(std::vector<CollisionPF::Particle> part);
 
 protected:
     ros::NodeHandle* nh_;
@@ -53,12 +63,19 @@ protected:
     ros::Rate* rate_;
     std::vector<boost::shared_ptr<CollMesh> > meshes_;
     boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
+    std::vector<int> sensor_types;
 
     double freq_;
 
     void init();
-    void load_meshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
-    void joint_state_callback(const sensor_msgs::JointState::ConstPtr &msg);
+    void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
+    void setSensors();
+    bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces);
+    void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
+
+    std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);
+    std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
+
 };
 
 

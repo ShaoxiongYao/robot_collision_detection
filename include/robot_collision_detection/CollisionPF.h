@@ -18,12 +18,11 @@
 #include <robot_collision_detection/CollMesh.h>
 #include <boost/smart_ptr.hpp>
 #include <sensor_msgs/JointState.h>
+#include <boost/smart_ptr.hpp>
 #include <kdl_conversions/kdl_msg.h>
 #include <eigen_conversions/eigen_kdl.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/PoseArray.h>
-#include <boost/random.hpp>
-#include <boost/random/random_number_generator.hpp>
 #include <random>
 
 class CollisionPF {

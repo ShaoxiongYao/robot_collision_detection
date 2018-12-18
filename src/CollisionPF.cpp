@@ -96,8 +96,8 @@ CollMesh::PointCloud::Ptr CollisionPF::particlesToPointCloud(std::vector<Collisi
                             -this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_y,
                             -this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p).normal_z);
 
-        CollMesh::PType p(pcl::transformPoint(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),T.at(part.at(i).n)));
-
+        //CollMesh::PType p(pcl::transformPoint(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),T.at(part.at(i).n)));
+        CollMesh::PType p;
         n_r=T.at(part.at(i).n).rotation()*n_r;
         p.normal_x=n_r[0];p.normal_y=n_r[1];p.normal_z=n_r[2]; //TODO: pcl::transformPointWithNormal(p,T.at(part.at(i).n));
 

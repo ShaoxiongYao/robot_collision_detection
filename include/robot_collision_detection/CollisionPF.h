@@ -8,6 +8,7 @@
 #include <Eigen/Core>
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/chainjnttojacsolver.hpp>
 #include <urdf_parser/urdf_parser.h>
 #include <ros/ros.h>
 #include <assimp/Importer.hpp>
@@ -72,7 +73,7 @@ protected:
     void setSensors();
     bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces);
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
-
+    std::vector<KDL::Wrench> jointsToMeasures(const sensor_msgs::JointState msg);
     std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);
     std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
     void createParticles(std::vector<CollisionPF::Particle>::iterator start,std::vector<CollisionPF::Particle>::iterator end,std::vector<CollisionPF::Particle> range);

@@ -67,7 +67,6 @@ void RobotController::updateRobotState(sensor_msgs::JointState::ConstPtr in){
     this->dyn_model_->JntToGravity(this->joints_.q,t_grav);
     //this->dyn_model_->JntToCoriolis(this->joints_.q,this->joints_.qdot,t_cor);
     this->dyn_model_->JntToMass(this->joints_.q,inertiaMatrix);
-
     KDL::Multiply(inertiaMatrix,this->joints_.qdotdot,t_acc);
 
     KDL::Add(t_acc,t_cor,t_comp);

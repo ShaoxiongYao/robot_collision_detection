@@ -34,6 +34,7 @@ public:
     void setPose(KDL::Frame in);
     KDL::Frame getPose();
     unsigned int getMeshSize();
+    std::vector<int> getNearestKidx(int K, PType p);
     PointCloud::Ptr  getNearestK(int K,PType p);
     std::vector<int> getPointsInRadius(PType p,double radius);
     void setPointCloudIntensity(std::vector<float> intensities);

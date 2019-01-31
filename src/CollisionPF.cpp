@@ -110,16 +110,28 @@ std::vector<CollisionPF::Particle> CollisionPF::addNoise(std::vector<CollisionPF
     std::vector<CollisionPF::Particle> out(part.size());
     std::mt19937 mt_rand(time(0));
 
-    std::normal_distribution<double> rand_F(0,std_dev.at(0));
-    std::normal_distribution<double> rand_K(0,std_dev.at(2));
+    std::normal_distribution<double> rand_p(0,std_dev.at(1));
+    std::normal_distribution<double> rand_F(0,std_dev.at(2));
+    std::normal_distribution<double> rand_K(0,std_dev.at(3));
 
 
     for (unsigned long i=0;i<part.size();i++){
-        out.at(i).n=part.at(i).n;
-        out.at(i).F=part.at(i).F+rand_F(mt_rand);
+        int r =rand();
+        if(r<RAND_MAX*std_dev.at(0) && part.at(i).n>0) out.at(i).n=part.at(i).n-1;
+            else if (r>(1-std_dev.at(0))*RAND_MAX && part.at(i).n<this->meshes_.size()-2) out.at(i).n=part.at(i).n+1;
+        else out.at(i).n=part.at(i).n;
 
-        std::vector<int> idx=this->meshes_.at(part.at(i).n)->getPointsInRadius(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),std_dev.at(1));
-        out.at(i).p=idx.at(mt_rand()%(idx.size())); //Random between 0 and idx.size()
+        out.at(i).F=fabs(part.at(i).F+rand_F(mt_rand));
+
+        //Different way of finding a near point
+        CollMesh::PType p(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p));
+        p.x+=rand_p(mt_rand);
+        p.y+=rand_p(mt_rand);
+        p.z+=rand_p(mt_rand);
+        out.at(i).p=this->meshes_.at(out.at(i).n)->getNearestKidx(1,p).at(0);
+
+        //std::vector<int> idx=this->meshes_.at(part.at(i).n)->getPointsInRadius(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),std_dev.at(1));
+        //out.at(i).p=idx.at(mt_rand()%(idx.size())); //Random between 0 and idx.size()
 
         part.at(i).K=part.at(i).K+rand_K(mt_rand);
         out.at(i).w=part.at(i).w;
@@ -127,8 +139,15 @@ std::vector<CollisionPF::Particle> CollisionPF::addNoise(std::vector<CollisionPF
     return (out);
 
 }
-
-
+void CollisionPF::createParticles(std::vector<CollisionPF::Particle>::iterator start,std::vector<CollisionPF::Particle>::iterator end,std::vector<CollisionPF::Particle> range){
+    for (std::vector<CollisionPF::Particle>::iterator it=start;it!=end;it++){
+        it->n = (int) std::rand()%(range.at(1).n-range.at(0).n)+range.at(0).n;
+        it->p = (int) std::rand()/(RAND_MAX/(this->meshes_.at(it->n)->getMeshSize()-1));
+        it->F = ((double) std::rand()/((double) RAND_MAX))*(range.at(1).F-range.at(0).F)+range.at(0).F;
+        it->K = ((double) std::rand()/((double) RAND_MAX))*(range.at(1).K-range.at(0).K)+range.at(0).K;
+        it->w = ((double) std::rand()/((double) RAND_MAX))*(range.at(1).w-range.at(0).w)+range.at(0).w;
+    }
+}
 std::vector<CollisionPF::Particle> CollisionPF::resampleParts(std::vector<CollisionPF::Particle> part,double percentage){
     //std::vector<CollisionPF::Particle> out(part.begin(),part.begin()+(part.size()*std::ceil(part.size()*percentage)));
     std::vector<CollisionPF::Particle> out(std::ceil(part.size()*percentage));
@@ -296,23 +315,15 @@ void CollisionPF::run() {
     std::default_random_engine generator (seed);
     std::normal_distribution<double> distribution (0.0,0.1);
     std::vector<double> r(6);
+    std::vector<double> std_devs{0.001,0.004,2.0,50.0};
+    double num_part=10000;
+    std::vector<CollisionPF::Particle> part_ranges{
+            {0,0,0.0,0.0,1/num_part} , {(int) this->meshes_.size(),999,20.0,1000.0,1/num_part} };
 
     std::srand(std::time(nullptr)); // use current time as seed for random generator
     std::vector<CollisionPF::Particle> parts;
-    parts.resize(10000);
-    for(unsigned long i=0;i<parts.size();i++){
-        parts.at(i).n=(int) std::rand()/(RAND_MAX/this->meshes_.size());
-        parts.at(i).p=(int) std::rand()/(RAND_MAX/(this->meshes_.at(parts.at(i).n)->getMeshSize()-1));
-        parts.at(i).F=10.0*std::rand()/(RAND_MAX);
-        parts.at(i).K=100.0;
-        parts.at(i).w=0.01;
-    }
-
-    std::vector<double> std_devs(3);
-    std_devs.at(0)=0.10;
-    std_devs.at(1)=0.001;
-    std_devs.at(2)=50.0;
-
+    parts.resize(num_part);
+    this->createParticles(parts.begin(),parts.end(),part_ranges);
 
     while(ros::ok()){
         ros::spinOnce();
@@ -353,15 +364,15 @@ void CollisionPF::run() {
         // Testing parts:
         std::vector<KDL::Wrench> measurements;
         measurements.push_back(KDL::Wrench(KDL::Vector(0.0,0.0,0),KDL::Vector(0.0,0.0,0.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,02.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
-        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,-0.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,01.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,-0.0)));
+        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,1.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
         measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
 
-
+       this->createParticles(parts.begin()+(int) (0.95*parts.size()),parts.end(),part_ranges);
         this->measurementModel(parts,measurements);
         CollMesh::PointCloud::Ptr pc(this->particlesToPointCloud(parts));
         parts=this->resampleParts(parts,1.0);

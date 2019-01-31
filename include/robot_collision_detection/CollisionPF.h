@@ -75,6 +75,7 @@ protected:
 
     std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);
     std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
+    void createParticles(std::vector<CollisionPF::Particle>::iterator start,std::vector<CollisionPF::Particle>::iterator end,std::vector<CollisionPF::Particle> range);
 
 };
 

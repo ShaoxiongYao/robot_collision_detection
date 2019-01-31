@@ -235,6 +235,13 @@ sensor_msgs::PointCloud2 CollMesh::getPointCloud(){
     return(pointcloud2_);
 }
 
+std::vector<int> CollMesh::getNearestKidx(int K, PType p) {
+    std::vector<int> pointIdxNKNSearch(K);
+    std::vector<float> pointNKNSquaredDistance(K);
+    this->kdtree_.nearestKSearch(p, K, pointIdxNKNSearch, pointNKNSquaredDistance);
+    return pointIdxNKNSearch;
+}
+
 CollMesh::PointCloud::Ptr CollMesh::getNearestK(int K, PType p) {
     std::vector<int> pointIdxNKNSearch(K);
     std::vector<float> pointNKNSquaredDistance(K);

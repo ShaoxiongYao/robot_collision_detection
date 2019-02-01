@@ -181,7 +181,7 @@ std::vector<CollisionPF::Particle> CollisionPF::resampleParts(std::vector<Collis
 }
 
 
-bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces){
+bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces,double alpha){
     if(this->meshes_.size() != forces.size()) {
         ROS_ERROR("Invalid size of measurements");
         return false;
@@ -235,7 +235,7 @@ bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std
 
             KDL::Wrench diff=f_part-forces.at(j);
             double cost=diff.force.Norm()+diff.torque.Norm();
-            bel*=exp(-0.05*cost);
+            bel*=exp(-alpha*cost);
             //if (exp(-cost)>0.9) ROS_INFO("%d %f",i, exp(-cost));
         }
         _bel.at(i)=bel*part.at(i).w;
@@ -346,17 +346,19 @@ void CollisionPF::run() {
     std::default_random_engine generator (seed);
     std::normal_distribution<double> distribution (0.0,0.1);
     std::vector<double> r(6);
-    std::vector<double> std_devs{0.001,0.01,5.0,50.0};
-    double num_part=10000;
-    std::vector<CollisionPF::Particle> part_ranges{ {0,0,0.0,0.0,1/num_part} , {(int) this->meshes_.size(),999,20.0,1000.0,1/num_part} };
+    std::vector<double> std_devs{0.00,0.01,1.0,50.0};
+    double num_part=6000;
+    double search_agg=0.0001;
+    std::vector<CollisionPF::Particle> part_ranges{ {5,0,0.0,0.0,1/num_part} , {(int) this->meshes_.size()-2,999,5.0,1000.0,1/num_part} };
 
     std::srand(std::time(nullptr)); // use current time as seed for random generator
     std::vector<CollisionPF::Particle> parts;
     parts.resize(num_part);
     this->createParticles(parts.begin(),parts.end(),part_ranges);
-
+    int iters=0;
     while(ros::ok()){
         ros::spinOnce();
+
 
 
         /*  for (unsigned long rr=0;rr<6;rr++){
@@ -409,7 +411,7 @@ void CollisionPF::run() {
 
 
         this->createParticles(parts.begin()+(int) (0.99*parts.size()),parts.end(),part_ranges);
-        this->measurementModel(parts,measurements);
+        this->measurementModel(parts,measurements,search_agg);
         CollMesh::PointCloud::Ptr pc(this->particlesToPointCloud(parts));
         parts=this->resampleParts(parts,1.0);
         parts=this->addNoise(parts,std_devs);
@@ -438,5 +440,15 @@ void CollisionPF::run() {
         pub_poses_.publish(poseArray);
 
         rate_->sleep();
+        iters++;
+        if(iters%20==0) {
+            std::cout << "Press Enter to Continue";
+           // std::cin.ignore();
+            for (unsigned long i = 1; i < std_devs.size(); i++) {
+                std_devs.at(i) *= 0.9;
+                search_agg *= 1.1;
+            }
+        }
+
     }
 }

@@ -22,6 +22,9 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
 )
 
+if (PKG_CONFIG_FOUND)
+    pkg_check_modules(GAZEBO gazebo)
+endif()
 
 
 find_package(assimp QUIET)
@@ -152,7 +155,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES robot_collision_detection
-  CATKIN_DEPENDS kdl_conversions eigen_conversions kdl_parser roscpp rospy tf2 urdf cmake_modules
+  CATKIN_DEPENDS kdl_conversions eigen_conversions kdl_parser roscpp rospy tf2 urdf cmake_modules gazebo_msgs
   DEPENDS orocos_kdl ASSIMP
 )
 
@@ -169,8 +172,9 @@ include_directories(
   ${Eigen3_INCLUDE_DIRS}
   ${orocos_kdl_INCLUDE_DIRS}
   ${assimp_INCLUDE_DIRS}
-
+  ${GAZEBO_INCLUDE_DIRS}
 )
+link_directories(${GAZEBO_LIBRARY_DIRS})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -185,6 +189,12 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
+
+add_executable(contact_display src/contact_display.cpp)
+add_dependencies(contact_display ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(contact_display ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${GAZEBO_LIBRARIES} )
+
+
  add_executable(robot_collision_detection_node src/robot_collision_detection_node.cpp src/CollisionPF.cpp src/CollMesh.cpp)
 
 ## Rename C++ executable without prefix

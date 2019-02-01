@@ -71,7 +71,7 @@ protected:
     void init();
     void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
     void setSensors();
-    bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces);
+    bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces,double alpha);
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);
     std::vector<KDL::Wrench> jointsToMeasures(const sensor_msgs::JointState msg);
     std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);

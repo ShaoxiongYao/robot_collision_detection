@@ -22,8 +22,9 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
 )
 
+include (FindPkgConfig)
 if (PKG_CONFIG_FOUND)
-    pkg_check_modules(GAZEBO gazebo)
+ pkg_check_modules(GAZEBO gazebo)
 endif()
 
 

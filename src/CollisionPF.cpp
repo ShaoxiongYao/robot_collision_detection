@@ -252,7 +252,7 @@ bool CollisionPF::measurementModel(std::vector<CollisionPF::Particle> &part, std
     //ROS_WARN("sum: %f = 1.0?",debug_sum );
 }
 
-void CollisionPF::init(){
+bool CollisionPF::loadParameters(){
     ros::param::param<std::string>(ns_+"/robot_description_param", this->description_param_, "/robot_description");
     ros::param::param<std::string>(ns_+"/joint_states_topic", this->joint_states_topic_, "/joint_states");
     ros::param::param<std::string>(ns_+"/base_frame", this->base_frame_, "iiwa_link_0");
@@ -260,18 +260,19 @@ void CollisionPF::init(){
     ros::param::param<double>(ns_+"/frequency", this->freq_, 10.0);
     ros::param::param<std::vector<int> >(ns_+"/sensors", this->sensor_types, std::vector<int>(7));
     ros::param::param<std::string>(this->description_param_, robot_description_xml_, "");
+    ros::param::param<int>(ns_+"/pf/num_parts",this->num_parts_, 10000);
+    ros::param::param<double>(ns_+"/pf/search_alpha",this->e_alpha_, 0.001);
+    ros::param::param<double>(ns_+"/pf/perc_new",this->perc_new_, 0.99);
+    ros::param::param<std::vector<double> >(ns_+"/pf/std_devs",this->std_devs_, {0.00,0.01,1.0,50.0});
+}
 
 
+void CollisionPF::init(){
+    this->loadParameters();
     ROS_INFO("Namespace: [%s]",ns_.c_str());
     kdl_parser::treeFromParam(this->description_param_,robot_tree_);
     robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_);
     this->jnt_array_.resize(this->robot_chain_.getNrOfJoints());
-
-    sub_jointstate_=nh_->subscribe(this->joint_states_topic_,1,&CollisionPF::jointStateCallback,this);
-    pub_marray_=nh_->advertise<visualization_msgs::MarkerArray>("body_markers",1);
-    pub_poses_=nh_->advertise<geometry_msgs::PoseArray>("joint_poses",1);
-
-
     rate_=new ros::Rate(freq_);
 
     urdf_model_ = urdf::parseURDF(robot_description_xml_);
@@ -280,6 +281,10 @@ void CollisionPF::init(){
     this->loadMeshes(urdf_model_,links,meshes_);
     this->fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(this->robot_chain_));
     this->setSensors();
+
+    sub_jointstate_=nh_->subscribe(this->joint_states_topic_,1,&CollisionPF::jointStateCallback,this);
+    pub_marray_=nh_->advertise<visualization_msgs::MarkerArray>("body_markers",1);
+    pub_poses_=nh_->advertise<geometry_msgs::PoseArray>("joint_poses",1);
 
 }
 void CollisionPF::jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg){
@@ -344,77 +349,24 @@ void CollisionPF::run() {
     }
     unsigned seed = ros::Time::now().sec;
     std::default_random_engine generator (seed);
-    std::normal_distribution<double> distribution (0.0,0.1);
-    std::vector<double> r(6);
-    std::vector<double> std_devs{0.00,0.01,1.0,50.0};
-    double num_part=6000;
-    double search_agg=0.0001;
-    std::vector<CollisionPF::Particle> part_ranges{ {5,0,0.0,0.0,1/num_part} , {(int) this->meshes_.size()-2,999,5.0,1000.0,1/num_part} };
+    //std::normal_distribution<double> distribution (0.0,0.1);
+    //std::vector<double> r(6);
+    std::vector<CollisionPF::Particle> part_ranges{ {0,0,0.0,0.0,1/(double) this->num_parts_} , {(int) this->meshes_.size(),999,20.0,1000.0,1/(double) this->num_parts_} };
 
     std::srand(std::time(nullptr)); // use current time as seed for random generator
-    std::vector<CollisionPF::Particle> parts;
-    parts.resize(num_part);
+    parts.resize(this->num_parts_);
     this->createParticles(parts.begin(),parts.end(),part_ranges);
     int iters=0;
     while(ros::ok()){
         ros::spinOnce();
-
-
-
-        /*  for (unsigned long rr=0;rr<6;rr++){
-           r.at(rr)=distribution(generator);
-              if (rr>2) r.at(rr)/=50;
-          }
-
-          KDL::Wrench F_in(KDL::Vector(0.0+r.at(0),10.0+r.at(1),0+r.at(2)),KDL::Vector(-03.0+r.at(3),0.0+r.at(4),-0.00+r.at(5)));
-
-
-
-          for (unsigned long i=0;i<this->meshes_.size() ;i++) {
-
-
-              std::vector<KDL::Wrench> forces(this->meshes_.at(i)->pcloud_->size(),T.Inverse(F_in));
-              std::vector<float> likelihoods;
-              likelihoods.resize(this->meshes_.at(i)->pcloud_->size());
-              this->meshes_.at(i)->getLikelihoods(forces,this->meshes_.at(i)->pcloud_,forces.at(0),likelihoods);
-              this->meshes_.at(i)->setPointCloudIntensity(likelihoods);
-
-              //pub_pc.at(i).publish(this->meshes_.at(i)->getPointCloud());
-
-
-
-
-              CollMesh::PType p;
-              p.x=0.01;
-              p.y=0.01;
-              p.z=0.1;
-              p.normal_x=1.0;
-
-              this->meshes_.at(i)->getNearestK(1,p);
-
-          }
-  */
-
-        // Testing parts:
         std::vector<KDL::Wrench> measurements;
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0.0,0.0,0),KDL::Vector(0.0,0.0,0.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,-0.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,01.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,-0.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,1.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
-//        measurements.push_back(KDL::Wrench(KDL::Vector(0,0,0),KDL::Vector(0,0,0.0)));
-
-
         measurements=this->jointsToMeasures(this->joint_state_);
 
-
-        this->createParticles(parts.begin()+(int) (0.99*parts.size()),parts.end(),part_ranges);
-        this->measurementModel(parts,measurements,search_agg);
+        this->createParticles(parts.begin()+(int) (this->perc_new_*parts.size()),parts.end(),part_ranges);
+        this->measurementModel(parts,measurements,this->e_alpha_);
         CollMesh::PointCloud::Ptr pc(this->particlesToPointCloud(parts));
         parts=this->resampleParts(parts,1.0);
-        parts=this->addNoise(parts,std_devs);
+        parts=this->addNoise(parts,std_devs_);
 
         sensor_msgs::PointCloud2 pointCloud2;
 
@@ -442,11 +394,10 @@ void CollisionPF::run() {
         rate_->sleep();
         iters++;
         if(iters%20==0) {
-            std::cout << "Press Enter to Continue";
-           // std::cin.ignore();
-            for (unsigned long i = 1; i < std_devs.size(); i++) {
-                std_devs.at(i) *= 0.9;
-                search_agg *= 1.1;
+            // std::cout << "Press Enter to Continue"; std::cin.ignore();
+            for (unsigned long i = 1; i < std_devs_.size(); i++) {
+                std_devs_.at(i) *= 0.9;
+                this->e_alpha_ *= 1.1;
             }
         }
 

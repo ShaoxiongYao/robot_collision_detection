@@ -5,27 +5,26 @@
 #ifndef ROBOT_COLLISION_DETECTION_COLLISION_PF_H
 #define ROBOT_COLLISION_DETECTION_COLLISION_PF_H
 
+#include <vector>
+#include <string>
+#include <random>
+#include <ros/ros.h>
+#include <ros/package.h>
 #include <Eigen/Core>
 #include <kdl_parser/kdl_parser.hpp>
+#include <kdl_conversions/kdl_msg.h>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainjnttojacsolver.hpp>
 #include <urdf_parser/urdf_parser.h>
-#include <ros/ros.h>
+#include <eigen_conversions/eigen_kdl.h>
+#include <eigen_conversions/eigen_msg.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>     // Post processing flags
 #include <assimp/scene.h>           // Output data structure
-#include <ros/package.h>
-#include <string>
-#include <robot_collision_detection/CollMesh.h>
 #include <boost/smart_ptr.hpp>
-#include <sensor_msgs/JointState.h>
-#include <boost/smart_ptr.hpp>
-#include <kdl_conversions/kdl_msg.h>
-#include <eigen_conversions/eigen_kdl.h>
-#include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/PoseArray.h>
-#include <random>
-
+#include <sensor_msgs/JointState.h>
+#include <robot_collision_detection/CollMesh.h>
 
 class CollisionPF {
 public:
@@ -65,10 +64,13 @@ protected:
     std::vector<boost::shared_ptr<CollMesh> > meshes_;
     boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
     std::vector<int> sensor_types;
-
-    double freq_;
+    std::vector<double> std_devs_;
+    int num_parts_;
+    double freq_,e_alpha_,perc_new_;
+    std::vector<CollisionPF::Particle> parts;
 
     void init();
+    bool loadParameters();
     void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
     void setSensors();
     bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces,double alpha);

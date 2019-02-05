@@ -15,7 +15,7 @@
 
 	
 	
-	<node pkg="robot_collision_detection" name="robot_controller" type="robot_controller" respawn="true" output="screen"/>
+	<node pkg="robot_collision_detection" name="robot_controller" type="robot_controller" respawn="false" output="screen"/>
 	<node pkg="robot_collision_detection" name="contact_display" type="contact_display" respawn="true" output="screen"/>
 
 	<node pkg="robot_collision_detection" name="robot_collision_detection" type="robot_collision_detection_node" respawn="false" output="screen">

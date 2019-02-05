@@ -270,13 +270,15 @@ bool CollisionPF::loadParameters(){
 void CollisionPF::init(){
     this->loadParameters();
     ROS_INFO("Namespace: [%s]",ns_.c_str());
-    kdl_parser::treeFromParam(this->description_param_,robot_tree_);
-    robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_);
+    if (!kdl_parser::treeFromParam(this->description_param_,robot_tree_)) exit(-1);
+    if (!robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_)) exit(-2);
     this->jnt_array_.resize(this->robot_chain_.getNrOfJoints());
     rate_=new ros::Rate(freq_);
 
     urdf_model_ = urdf::parseURDF(robot_description_xml_);
     std::vector<urdf::LinkConstSharedPtr> links;
+
+    if (urdf_model_== nullptr) {ROS_ERROR("URDF model not loaded!"); throw;}
 
     this->loadMeshes(urdf_model_,links,meshes_);
     this->fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(this->robot_chain_));
@@ -396,8 +398,8 @@ void CollisionPF::run() {
         if(iters%20==0) {
             // std::cout << "Press Enter to Continue"; std::cin.ignore();
             for (unsigned long i = 1; i < std_devs_.size(); i++) {
-                std_devs_.at(i) *= 0.9;
-                this->e_alpha_ *= 1.1;
+                std_devs_.at(i) *= 0.9999;
+                this->e_alpha_ *= 1.000001;
             }
         }
 

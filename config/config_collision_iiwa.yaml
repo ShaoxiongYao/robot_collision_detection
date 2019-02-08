@@ -8,5 +8,5 @@ sensors: [-1, 6, 6, 6, 6, 6, 6, 6] #-1: None; 0: FTsensor; 1: Force_x; 4:Torque_
 pf:
   num_parts: 4000
   search_alpha: 0.001 #aggressiveness of search
-  perc_new: 0.9 # (1-p) percentage of new particles
+  perc_new: 1.0 # (1-p) percentage of new particles
   std_devs: [0.01, 0.01, 5.0, 50] #Transition,  pos, Force, K

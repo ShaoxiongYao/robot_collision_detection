@@ -43,6 +43,7 @@ protected:
         marker.color.r=0.9;
         marker.pose.orientation.w=1.0;
         marker.ns=ns;
+        marker.lifetime=ros::Duration(1.0);
 
         marker.action = visualization_msgs::Marker::ADD;
         marker.type = visualization_msgs::Marker::ARROW;

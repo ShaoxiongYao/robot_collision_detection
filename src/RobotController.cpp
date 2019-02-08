@@ -59,11 +59,14 @@ void RobotController::updateRobotState(sensor_msgs::JointState::ConstPtr in){
         //this->joints_.qdotdot(i, 0) = alpha_ * acc + (1 - alpha_) * this->joints_.qdotdot(i, 0);
     }
 
-    ROS_DEBUG("%.3f %.3f %.3f %.3f %.3f %.3f %.3f",this->joints_.qdotdot(0, 0),this->joints_.qdotdot(1, 0),this->joints_.qdotdot(2, 0),
+    ROS_DEBUG("q(%d): %.3f %.3f %.3f %.3f %.3f %.3f %.3f",this->robot_chain_.getNrOfJoints(),this->joints_.q(0, 0),this->joints_.q(1, 0),this->joints_.q(2, 0),
+             this->joints_.q(3, 0),this->joints_.q(4, 0),this->joints_.q(5, 0),this->joints_.q(6, 0));
+
+    ROS_DEBUG("q.. : %.3f %.3f %.3f %.3f %.3f %.3f %.3f",this->joints_.qdotdot(0, 0),this->joints_.qdotdot(1, 0),this->joints_.qdotdot(2, 0),
              this->joints_.qdotdot(3, 0),this->joints_.qdotdot(4, 0),this->joints_.qdotdot(5, 0),this->joints_.qdotdot(6, 0));
 
     KDL::JntArray t_grav(this->robot_chain_.getNrOfJoints()),t_cor(this->robot_chain_.getNrOfJoints()),t_acc(this->robot_chain_.getNrOfJoints()),t_comp(this->robot_chain_.getNrOfJoints());
-
+    ROS_DEBUG("T_grav: %d %d --  %f %f", t_grav.columns(),t_grav.rows(),t_grav(1,0),t_grav(6,0));
     KDL::JntSpaceInertiaMatrix inertiaMatrix(this->robot_chain_.getNrOfJoints());
     this->dyn_model_->JntToGravity(this->joints_.q,t_grav);
     this->dyn_model_->JntToCoriolis(this->joints_.q,this->joints_.qdot,t_cor);

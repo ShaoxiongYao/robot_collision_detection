@@ -25,6 +25,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <sensor_msgs/JointState.h>
 #include <robot_collision_detection/CollMesh.h>
+#include <robot_collision_detection/GetParts.h>
 
 class CollisionPF {
 public:
@@ -54,6 +55,7 @@ protected:
     ros::NodeHandle* nh_;
     ros::Publisher pub_marray_,pub_poses_;
     ros::Subscriber sub_jointstate_;
+    ros::ServiceServer srv_parts;
     std::string ns_,description_param_,base_frame_,ee_frame_,robot_description_xml_,joint_states_topic_;
     KDL::Chain robot_chain_;
     KDL::Tree robot_tree_;
@@ -79,6 +81,7 @@ protected:
     std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);
     std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
     void createParticles(std::vector<CollisionPF::Particle>::iterator start,std::vector<CollisionPF::Particle>::iterator end,std::vector<CollisionPF::Particle> range);
+    bool partReturnCallback(robot_collision_detection::GetParts::Request& request, robot_collision_detection::GetParts::Response& response);
 
 };
 

@@ -100,7 +100,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
-   Part.msg
+   CollPart.msg
 #   Message2.msg
  )
 

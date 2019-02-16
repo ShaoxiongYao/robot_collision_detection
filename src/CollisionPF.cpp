@@ -80,7 +80,7 @@ void CollisionPF::setSensors(){
 
 bool CollisionPF::partReturnCallback(robot_collision_detection::GetParts::Request& request, robot_collision_detection::GetParts::Response& response){
     for (unsigned int i=0;i<this->parts.size();i++){
-        robot_collision_detection::Part part;
+        robot_collision_detection::CollPart part;
         part.n=this->parts.at(i).n;
         part.p_idx=this->parts.at(i).p;
         tf::wrenchKDLToMsg(this->meshes_.at(this->parts.at(i).n)->ForceAtPoint(this->parts.at(i).p,this->parts.at(i).F,0.0),part.F);
@@ -99,6 +99,7 @@ bool CollisionPF::partReturnCallback(robot_collision_detection::GetParts::Reques
         tf::poseKDLToMsg(this->meshes_.at(i)->getPose(),j_pose);
         response.joint_poses.push_back(j_pose);
     }
+    response.joint_state=this->joint_state_;
     response.header.stamp=ros::Time::now();
     if(response.part.size()>0) return true;
     else return false;

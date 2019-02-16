@@ -2,4 +2,4 @@
 Header header
 sensor_msgs/JointState joint_state
 geometry_msgs/Pose[] joint_poses
-robot_collision_detection/Part[] part
+robot_collision_detection/CollPart[] part

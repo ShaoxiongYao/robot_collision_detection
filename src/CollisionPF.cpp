@@ -88,6 +88,7 @@ bool CollisionPF::partReturnCallback(robot_collision_detection::GetParts::Reques
         part.p.y=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).y;
         part.p.z=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).z;
         part.K=parts.at(i).K;
+        part.w=parts.at(i).w;
 
         // =this->parts.at(i).F;
         //part.n=this->parts.at(i).n;

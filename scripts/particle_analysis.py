@@ -40,6 +40,9 @@ class PartUI():
         b.grid(row=0,column=1)
         b = tk.Button(parent, text="Embed", command=self.interrupt_callback)
         b.grid(row=1,column=1)
+        b = tk.Button(parent, text="resize", command=self.get_plot_ranges)
+        b.grid(row=1,column=2)
+
         group = tk.LabelFrame(parent, text="Display Links", padx=5, pady=5)
         group.grid(row=2,column=1)
         #group.pack(padx=10, pady=10)
@@ -56,10 +59,11 @@ class PartUI():
         self.check_all.set(0)
 
     def interrupt_callback(self):
-    	parts=self.getParts()
-    	x,y,n,w=self.parts_to_xy(parts.part) 
-    	embed()
+        parts=self.getParts()
+        x,y,n,w=self.parts_to_xy(parts.part)
+        embed()
 
+    
 
     def pause_callback(self):
         print "paused!"
@@ -101,7 +105,7 @@ class PartUI():
         window.title("A figure in a canvas")
         self.canvas = tk.Canvas(window, width=w, height=h)
         #self.canvas.pack()
-        self.canvas.grid(row=0,column=0,rowspan = 3)
+        self.canvas.grid(row=0,column=0,rowspan = 5)
 
         # Create the figure we desire to add to an existing canvas
         self.fig = mpl.figure.Figure(figsize=(10, 8))        
@@ -210,7 +214,7 @@ class PartUI():
         figure_canvas_agg = FigureCanvasAgg(figure)
         self.cid = figure_canvas_agg.mpl_connect('button_press_event', self.onclick)
 
-        embed()
+        #embed()
 
 
 

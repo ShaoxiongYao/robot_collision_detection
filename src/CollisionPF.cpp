@@ -78,6 +78,15 @@ void CollisionPF::setSensors(){
     }
 }
 
+bool CollisionPF::restartEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
+
+    this->parts.resize(this->num_parts_);
+    this->loadParameters();
+    ROS_WARN("n: %d ranges: %d %d %f %f",this->num_parts_,this->part_ranges.at(0).n, this->part_ranges.at(1).n,this->part_ranges.at(0).F,this->part_ranges.at(1).F);
+    this->createParticles(parts.begin(), parts.end(), this->part_ranges);
+    return true;
+}
+
 bool CollisionPF::partReturnCallback(robot_collision_detection::GetParts::Request& request, robot_collision_detection::GetParts::Response& response){
     for (unsigned int i=0;i<this->parts.size();i++){
         robot_collision_detection::CollPart part;
@@ -87,7 +96,7 @@ bool CollisionPF::partReturnCallback(robot_collision_detection::GetParts::Reques
         part.p.x=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).x;
         part.p.y=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).y;
         part.p.z=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).z;
-        part.K=parts.at(i).K;
+        part.K=parts.at(i).F;
         part.w=parts.at(i).w;
 
         // =this->parts.at(i).F;
@@ -293,6 +302,24 @@ bool CollisionPF::loadParameters(){
     ros::param::param<double>(ns_+"/pf/search_alpha",this->e_alpha_, 0.001);
     ros::param::param<double>(ns_+"/pf/perc_new",this->perc_new_, 0.99);
     ros::param::param<std::vector<double> >(ns_+"/pf/std_devs",this->std_devs_, {0.00,0.01,1.0,50.0});
+
+    this->part_ranges.resize(2);
+    std::vector<double> rang(2);
+    ros::param::param<std::vector<double> >(ns_+"/pf/ranges/n",rang, {0.0,7.0});
+    this->part_ranges.at(0).n=(int) rang.at(0);
+    this->part_ranges.at(1).n=(int) rang.at(1);
+
+    ros::param::param<std::vector<double> >(ns_+"/pf/ranges/F",rang, {0.0,200.0});
+    this->part_ranges.at(0).F=rang.at(0);
+    this->part_ranges.at(1).F=rang.at(1);
+
+    ros::param::param<std::vector<double> >(ns_+"/pf/ranges/K",rang, {0.0,10000.0});
+    this->part_ranges.at(0).K=rang.at(0);
+    this->part_ranges.at(1).K=rang.at(1);
+    this->part_ranges.at(0).w=1/(double) this->num_parts_;
+    this->part_ranges.at(1).w=1/(double) this->num_parts_;
+
+    return true;
 }
 
 
@@ -317,7 +344,7 @@ void CollisionPF::init(){
     pub_marray_=nh_->advertise<visualization_msgs::MarkerArray>("body_markers",1);
     pub_poses_=nh_->advertise<geometry_msgs::PoseArray>("joint_poses",1);
     srv_parts = nh_->advertiseService("get_particles",&CollisionPF::partReturnCallback, this);
-
+    srv_restart = nh_->advertiseService("restart_estimation",&CollisionPF::restartEstimation, this);
 }
 void CollisionPF::jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg){
     this->joint_state_=*msg;
@@ -374,6 +401,16 @@ visualization_msgs::MarkerArray CollisionPF::getMarkers(){
     return markerArray;
 }
 
+
+void CollisionPF::step(std::vector<CollisionPF::Particle> &parts, std::vector<KDL::Wrench> measurements) {
+
+    this->createParticles(parts.begin()+(int) (this->perc_new_*parts.size()),parts.end(),part_ranges);
+    this->measurementModel(parts,measurements,this->e_alpha_);
+    parts=this->resampleParts(parts,1.0);
+    parts=this->addNoise(parts,this->std_devs_);
+}
+
+
 void CollisionPF::run() {
     std::vector<ros::Publisher> pub_pc;
     for(int i=0;i<8;i++){
@@ -383,41 +420,29 @@ void CollisionPF::run() {
     std::default_random_engine generator (seed);
     //std::normal_distribution<double> distribution (0.0,0.1);
     //std::vector<double> r(6);
-    std::vector<CollisionPF::Particle> part_ranges{ {0,0,0.0,0.0,1/(double) this->num_parts_} , {(int) this->meshes_.size(),999,20.0,1000.0,1/(double) this->num_parts_} };
+    //std::vector<CollisionPF::Particle> part_ranges{ {0,0,0.0,0.0,1/(double) this->num_parts_} , {(int) this->meshes_.size(),999,20.0,1000.0,1/(double) this->num_parts_} };
 
     std::srand(std::time(nullptr)); // use current time as seed for random generator
     parts.resize(this->num_parts_);
-    this->createParticles(parts.begin(),parts.end(),part_ranges);
+    this->createParticles(parts.begin(),parts.end(),this->part_ranges);
     int iters=0;
     while(ros::ok()){
         ros::spinOnce();
-        std::vector<KDL::Wrench> measurements;
-        measurements=this->jointsToMeasures(this->joint_state_);
+        std::vector<KDL::Wrench> measurements=this->jointsToMeasures(this->joint_state_);
+        this->step(this->parts,measurements);
 
-        this->createParticles(parts.begin()+(int) (this->perc_new_*parts.size()),parts.end(),part_ranges);
-        this->measurementModel(parts,measurements,this->e_alpha_);
         CollMesh::PointCloud::Ptr pc(this->particlesToPointCloud(parts));
-        parts=this->resampleParts(parts,1.0);
-        parts=this->addNoise(parts,std_devs_);
-
         sensor_msgs::PointCloud2 pointCloud2;
-
         pcl::toROSMsg(*pc,pointCloud2);
-
         pub_pc.at(0).publish(pointCloud2);
-
         visualization_msgs::MarkerArray markerArray=this->getMarkers();
         geometry_msgs::PoseArray poseArray;
-
-
         for (unsigned long i=0;i<this->meshes_.size() ;i++) {
             geometry_msgs::Pose m;
             tf::poseKDLToMsg(this->meshes_.at(i)->getPose(), m);
             poseArray.poses.push_back(m);
             markerArray.markers.at(i).pose=m;
         }
-
-
         poseArray.header.stamp=ros::Time::now();
         poseArray.header.frame_id=this->base_frame_;
         pub_marray_.publish(markerArray);
@@ -428,8 +453,8 @@ void CollisionPF::run() {
         if(iters%20==0) {
             // std::cout << "Press Enter to Continue"; std::cin.ignore();
             for (unsigned long i = 1; i < std_devs_.size(); i++) {
-                std_devs_.at(i) *= 0.9999;
-                this->e_alpha_ *= 1.000001;
+                std_devs_.at(i) *= 0.95;
+                this->e_alpha_ *= 1.001;
             }
         }
 

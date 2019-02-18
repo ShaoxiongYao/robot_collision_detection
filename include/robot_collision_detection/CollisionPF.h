@@ -26,6 +26,7 @@
 #include <sensor_msgs/JointState.h>
 #include <robot_collision_detection/CollMesh.h>
 #include <robot_collision_detection/GetParts.h>
+#include <std_srvs/Empty.h>
 
 class CollisionPF {
 public:
@@ -50,12 +51,13 @@ public:
     void run();
     visualization_msgs::MarkerArray getMarkers();
     CollMesh::PointCloud::Ptr particlesToPointCloud(std::vector<CollisionPF::Particle> part);
+    void step(std::vector<CollisionPF::Particle> &parts, std::vector<KDL::Wrench> measurements);
 
 protected:
     ros::NodeHandle* nh_;
     ros::Publisher pub_marray_,pub_poses_;
     ros::Subscriber sub_jointstate_;
-    ros::ServiceServer srv_parts;
+    ros::ServiceServer srv_parts,srv_restart;
     std::string ns_,description_param_,base_frame_,ee_frame_,robot_description_xml_,joint_states_topic_;
     KDL::Chain robot_chain_;
     KDL::Tree robot_tree_;
@@ -70,7 +72,7 @@ protected:
     int num_parts_;
     double freq_,e_alpha_,perc_new_;
     std::vector<CollisionPF::Particle> parts;
-
+    std::vector<CollisionPF::Particle> part_ranges;
     void init();
     bool loadParameters();
     void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
@@ -82,7 +84,7 @@ protected:
     std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
     void createParticles(std::vector<CollisionPF::Particle>::iterator start,std::vector<CollisionPF::Particle>::iterator end,std::vector<CollisionPF::Particle> range);
     bool partReturnCallback(robot_collision_detection::GetParts::Request& request, robot_collision_detection::GetParts::Response& response);
-
+    bool restartEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 };
 
 

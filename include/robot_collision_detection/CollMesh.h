@@ -45,6 +45,7 @@ public:
    //make protected
     KDL::Wrench mask_;
     PointCloud::Ptr pcloud_;
+    pcl::KdTreeFLANN<PType> kdtree_;
 
 protected:
     aiMesh ass_mesh_;
@@ -53,7 +54,6 @@ protected:
     visualization_msgs::Marker marker_;
     sensor_msgs::PointCloud2 pointcloud2_;
     std::vector<KDL::Vector> normals_kdl_, points_kdl_;
-    pcl::KdTreeFLANN<PType> kdtree_;
 
     void init(aiMesh* in_mesh,KDL::Frame T);
     void copyMesh(aiMesh* in_mesh,aiMesh* out_mesh);

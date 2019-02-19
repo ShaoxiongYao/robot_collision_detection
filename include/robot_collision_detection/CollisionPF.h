@@ -51,13 +51,14 @@ public:
     void run();
     visualization_msgs::MarkerArray getMarkers();
     CollMesh::PointCloud::Ptr particlesToPointCloud(std::vector<CollisionPF::Particle> part);
-    void step(std::vector<CollisionPF::Particle> &parts, std::vector<KDL::Wrench> measurements);
+    void step(std::vector<CollisionPF::Particle> &parts, std::vector<KDL::Wrench> measurements, double m_s, double m_a);
+    std::vector<KDL::Frame> prev_state_;
 
 protected:
     ros::NodeHandle* nh_;
-    ros::Publisher pub_marray_,pub_poses_;
+    ros::Publisher pub_marray_,pub_poses_,pub_pc_;
     ros::Subscriber sub_jointstate_;
-    ros::ServiceServer srv_parts,srv_restart;
+    ros::ServiceServer srv_parts_,srv_restart_,srv_step_;
     std::string ns_,description_param_,base_frame_,ee_frame_,robot_description_xml_,joint_states_topic_;
     KDL::Chain robot_chain_;
     KDL::Tree robot_tree_;
@@ -70,6 +71,7 @@ protected:
     std::vector<int> sensor_types;
     std::vector<double> std_devs_;
     int num_parts_;
+    bool run_;
     double freq_,e_alpha_,perc_new_;
     std::vector<CollisionPF::Particle> parts;
     std::vector<CollisionPF::Particle> part_ranges;
@@ -83,8 +85,11 @@ protected:
     std::vector<CollisionPF::Particle> resampleParts(std::vector<CollisionPF::Particle> part,double percentage);
     std::vector<CollisionPF::Particle> addNoise(std::vector<CollisionPF::Particle> part,std::vector<double> std_dev);
     void createParticles(std::vector<CollisionPF::Particle>::iterator start,std::vector<CollisionPF::Particle>::iterator end,std::vector<CollisionPF::Particle> range);
+    std::vector<CollisionPF::Particle> motionModel(std::vector<CollisionPF::Particle> parts, std::vector<KDL::Frame> prev);
     bool partReturnCallback(robot_collision_detection::GetParts::Request& request, robot_collision_detection::GetParts::Response& response);
     bool restartEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+    bool stepEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+    void publishOutputs(std::vector<CollisionPF::Particle> parts);
 };
 
 

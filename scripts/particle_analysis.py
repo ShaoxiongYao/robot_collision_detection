@@ -4,9 +4,10 @@ import rospy
 from robot_collision_detection.msg import CollPart
 from robot_collision_detection.srv import GetParts, GetPartsRequest, GetPartsResponse
 
-from geometry_msgs.msg import PoseArray, Pose, PoseStamped, TwistStamped, WrenchStamped
+from geometry_msgs.msg import PoseArray, Pose, PoseStamped, TwistStamped, WrenchStamped, Vector3, PointStamped, Point
 from qb_interface.msg import handRef, handPos
 from std_msgs.msg import UInt32MultiArray, String
+from std_srvs.srv import Empty, EmptyRequest
 import time
 import matplotlib as mpl
 import numpy as np
@@ -27,21 +28,32 @@ window = tk.Tk()
 class PartUI():
     def __init__(self, *args, **kwargs):
         rospy.init_node('analyse_parts_ui', anonymous=True)
-        self.rate = rospy.Rate(1) # 10hz
+        self.rate = rospy.Rate(10) # 10hz
         self.is_running=True;
         self.n_links=8;
+        rospy.wait_for_service('robot_collision_detection/step_estimation')
+        self.srv_client = rospy.ServiceProxy('robot_collision_detection/step_estimation', Empty)
+
+        self.p_sub=rospy.Subscriber("/contact_point_local", PointStamped, self.p_callback)
+        self.f_sub=rospy.Subscriber("/contact_force", WrenchStamped, self.f_callback)
+
         self.start_canvas()
 
         self.create_widgets(window)
         self.get_plot_ranges()
+        self.p_true=Point()
+        self.f_true=Vector3()
      
     def create_widgets(self,parent=window):
         b = tk.Button(parent, text="Pause", command=self.pause_callback)
         b.grid(row=0,column=1)
         b = tk.Button(parent, text="Embed", command=self.interrupt_callback)
         b.grid(row=1,column=1)
-        b = tk.Button(parent, text="resize", command=self.get_plot_ranges)
+        b = tk.Button(parent, text="step", command=self.callStep)
         b.grid(row=1,column=2)
+        b = tk.Button(parent, text="resize", command=self.get_plot_ranges)
+        b.grid(row=0,column=2)
+
 
         group = tk.LabelFrame(parent, text="Display Links", padx=5, pady=5)
         group.grid(row=2,column=1)
@@ -55,15 +67,21 @@ class PartUI():
             c = tk.Checkbutton(group, text="link"+str(i), command=self.check_changed_cb,variable=self.checks[i])        
             c.pack()
 
+
+    def f_callback(self,msg):
+        self.f_true=msg.wrench.force;
+
+    def p_callback(self,msg):
+        self.p_true=msg.point
+
+
     def check_changed_cb(self):
         self.check_all.set(0)
 
     def interrupt_callback(self):
         parts=self.getParts()
         x,y,n,w=self.parts_to_xy(parts.part)
-        embed()
-
-    
+           
 
     def pause_callback(self):
         print "paused!"
@@ -91,7 +109,7 @@ class PartUI():
             max_w=max_wa-min_w
             for i in range(0,len(ws)):
                 rw=(ws[i]-min_w)/max_w
-                c=np.vstack([c,[1-rw,rw,0]])
+                c=np.vstack([c,[(1-rw)**5,rw**5,0]])
         return c
 
     def onclick(self,event):
@@ -132,9 +150,17 @@ class PartUI():
         rospy.wait_for_service('robot_collision_detection/get_particles')
         try:
             srv_client = rospy.ServiceProxy('robot_collision_detection/get_particles', GetParts)
-
             parts = srv_client(GetPartsRequest())
             return parts
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+
+    def callStep(self):
+    	#self.is_running=False
+        try:
+            self.srv_client(EmptyRequest())
+            self.redraw()
+            window.update()
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
 
@@ -149,8 +175,8 @@ class PartUI():
         n=[]        
         for p in parts:
             n.append(p.n)
-            #x.append(np.linalg.norm(self.toVec(p.p)))
-            x.append(p.p.z)
+            x.append(np.linalg.norm(self.toVec(p.p)))
+            #x.append(p.p.z)
             y.append(np.linalg.norm(self.toVec(p.F.force)))
             w.append(p.w)
         return np.array(x),np.array(y),np.array(n),np.array(w)
@@ -181,8 +207,18 @@ class PartUI():
         ma=max(w)
         x,y,n,w=self.select_links(x,y,n,w)        
         c=self.w_to_colors(w,max_wa=ma)
+
+        x=np.append(x,np.linalg.norm([self.p_true.x,self.p_true.y,self.p_true.z]))
+        #x=np.append(x,self.p_true.z)
+        y=np.append(y,np.linalg.norm([self.f_true.x,self.f_true.y,self.f_true.z]))
+        c=np.vstack([c,[0,0,1]])
+
+        #print(str(x[-1]) + " -- "+ str(y[-1]))
         self.ax.cla()
-        plt=self.ax.scatter(x,y,s=10,c=c,picker=10)
+        ss=[50]*len(x);
+        ss[-1]=100;
+        #embed()
+        plt=self.ax.scatter(x,y,s=ss,c=c,picker=10)
         self.cid10=plt.figure.canvas.mpl_connect('pick_event', self.onpick3)
         self.cid11 = plt.figure.canvas.mpl_connect('button_press_event', self.onclick)
 
@@ -200,8 +236,8 @@ class PartUI():
             self.rate.sleep()
             if self.is_running:
                 self.redraw()
-            self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
-            window.update()
+            	#self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
+        	window.update()
 
 
 

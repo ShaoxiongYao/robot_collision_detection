@@ -5,12 +5,13 @@ ee_frame: "iiwa_link_7"
 frequency: 10.0
 #sensors: [0, 3, 3, 3, 3, 3, 3, 3] #-1: None; 0: FTsensor; 1: Force_x; 4:Torque_x, ...
 sensors: [-1, 6, 6, 6, 6, 6, 6, 6] #-1: None; 0: FTsensor; 1: Force_x; 4:Torque_x, ...
+sensor_noise: 0.05
 pf:
-  num_parts: 10000
-  search_alpha: 0.002 #aggressiveness of search
-  perc_new: 0.99 # (1-p) percentage of new particles
-  std_devs: [0.0, 0.01, 5.0, 50] #Transition,  pos, Force, K
+  num_parts: 5000
+  search_alpha: 0.0005 #aggressiveness of search
+  perc_new: 0.95 # (1-p) percentage of new particles
+  std_devs: [0.01, 0.01, 5.0, 50] #Transition,  pos, Force, K
   ranges:
     n: [0, 7]
     F: [0, 500]
-    K: [0, 1000]
+    K: [0, 1.0]

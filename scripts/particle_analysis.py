@@ -55,8 +55,20 @@ class PartUI():
         b.grid(row=0,column=2)
 
 
+        r_group = tk.LabelFrame(parent, text="Show", padx=5, pady=5)
+        r_group.grid(row=2,column=1,rowspan = 1)
+
+        self.v_radio=tk.IntVar(value=1)
+        r = tk.Radiobutton(r_group, text="Forces",variable=self.v_radio, value=1)
+        r.grid(row=0,column=0)        
+        r = tk.Radiobutton(r_group, text="Stiffness",variable=self.v_radio, value=2)
+        r.grid(row=1,column=0)
+
+
+
+
         group = tk.LabelFrame(parent, text="Display Links", padx=5, pady=5)
-        group.grid(row=2,column=1)
+        group.grid(row=3,column=1)
         #group.pack(padx=10, pady=10)
 
         self.check_all = tk.IntVar(value=1)
@@ -95,6 +107,7 @@ class PartUI():
     def get_plot_ranges(self):
         parts=self.getParts()
         x,y,n,w=self.parts_to_xy(parts.part)
+        x,y,n,w=self.select_links(x,y,n,w)        
         self.xmin=min(x)
         self.xmax=max(x)
         self.ymin=min(y)
@@ -177,7 +190,10 @@ class PartUI():
             n.append(p.n)
             x.append(np.linalg.norm(self.toVec(p.p)))
             #x.append(p.p.z)
-            y.append(np.linalg.norm(self.toVec(p.F.force)))
+            if(self.v_radio.get()==1):
+                y.append(np.linalg.norm(self.toVec(p.F.force)))
+            elif(self.v_radio.get()==2):            
+                y.append(p.K)
             w.append(p.w)
         return np.array(x),np.array(y),np.array(n),np.array(w)
 
@@ -210,7 +226,10 @@ class PartUI():
 
         x=np.append(x,np.linalg.norm([self.p_true.x,self.p_true.y,self.p_true.z]))
         #x=np.append(x,self.p_true.z)
-        y=np.append(y,np.linalg.norm([self.f_true.x,self.f_true.y,self.f_true.z]))
+        if(self.v_radio.get()==1):
+            y=np.append(y,np.linalg.norm([self.f_true.x,self.f_true.y,self.f_true.z]))
+        elif(self.v_radio.get()==2):
+            y=np.append(y,5000)
         c=np.vstack([c,[0,0,1]])
 
         #print(str(x[-1]) + " -- "+ str(y[-1]))
@@ -226,9 +245,11 @@ class PartUI():
         self.ax.set_xlim(self.xmin,self.xmax)
         self.ax.set_ylim(self.ymin,self.ymax)
         self.ax.set_xlabel('l')
-        self.ax.set_ylabel('F')
-        
-        
+        if(self.v_radio.get()==1):
+            self.ax.set_ylabel('F')
+        elif(self.v_radio.get()==2):            
+            self.ax.set_ylabel('K')
+
         self.fig_photo = self.draw_figure(self.canvas, self.fig, loc=(self.fig_x, self.fig_y))
     
     def run(self):

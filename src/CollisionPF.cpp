@@ -81,10 +81,11 @@ void CollisionPF::setSensors(){
 
 bool CollisionPF::stepEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
     this->run_= false;
+    this->loadParameters();
     std::vector<KDL::Wrench> measurements = this->jointsToMeasures(this->joint_state_);
     this->step(this->parts, measurements,1,1);
     this->publishOutputs(this->parts);
-
+    return true;
 }
 
 bool CollisionPF::restartEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
@@ -106,12 +107,8 @@ bool CollisionPF::partReturnCallback(robot_collision_detection::GetParts::Reques
         part.p.x=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).x;
         part.p.y=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).y;
         part.p.z=this->meshes_.at(this->parts.at(i).n)->pcloud_->at(this->parts.at(i).p).z;
-        part.K=parts.at(i).F;
+        part.K=parts.at(i).K;
         part.w=parts.at(i).w;
-
-        // =this->parts.at(i).F;
-        //part.n=this->parts.at(i).n;
-
         response.part.push_back(part);
     }
     for (unsigned int i=0;i<this->meshes_.size();i++){
@@ -174,12 +171,12 @@ std::vector<CollisionPF::Particle> CollisionPF::motionModel(std::vector<Collisio
         p=dFrame.at(parts.at(i).n)*p;
         n=dFrame.at(parts.at(i).n).M*n;
 
-        double r=pow(10,0.001+0.999*((double) rand())/RAND_MAX);
+        double r=pow(10,-3+3*((double) rand())/RAND_MAX);
         KDL::Vector c_v=p+(r*n);
         CollMesh::PType c;
         c.x=c_v.x();c.y=c_v.y();c.z=c_v.z();
 
-        this->meshes_.at(parts.at(i).n)->kdtree_.nearestKSearch(p_prev,1,pointIdxNKNSearch,pointNKNSquaredDistance);
+        this->meshes_.at(parts.at(i).n)->kdtree_.nearestKSearch(c,1,pointIdxNKNSearch,pointNKNSquaredDistance);
         CollisionPF::Particle particle=parts.at(i);
         particle.F+=particle.K*(r-sqrt(pointNKNSquaredDistance.at(0)));
         particle.p=pointIdxNKNSearch.at(0);
@@ -217,7 +214,7 @@ std::vector<CollisionPF::Particle> CollisionPF::addNoise(std::vector<CollisionPF
         //std::vector<int> idx=this->meshes_.at(part.at(i).n)->getPointsInRadius(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),std_dev.at(1));
         //out.at(i).p=idx.at(mt_rand()%(idx.size())); //Random between 0 and idx.size()
 
-        part.at(i).K=part.at(i).K+rand_K(mt_rand);
+        out.at(i).K=part.at(i).K+rand_K(mt_rand);
         out.at(i).w=part.at(i).w;
     }
     return (out);
@@ -396,8 +393,8 @@ void CollisionPF::init(){
     srv_step_ = nh_->advertiseService("step_estimation",&CollisionPF::stepEstimation, this);
 
     this->prev_state_.clear();
-    for (unsigned long i = 1; i < this->meshes_.size(); i++) {
-        this->prev_state_.push_back(this->meshes_.at(i)->getPose());
+    for (unsigned long i = 0; i < this->meshes_.size(); i++) {
+        this->prev_state_.push_back(this->meshes_.at(i)->getPose()); //TODO: Poses aren't available yet!
     }
 
 }
@@ -470,7 +467,7 @@ void CollisionPF::step(std::vector<CollisionPF::Particle> &parts, std::vector<KD
         this->e_alpha_ *= mult_alpha;
     }
     this->prev_state_.clear();
-    for (unsigned long i = 1; i < this->meshes_.size(); i++) {
+    for (unsigned long i = 0; i < this->meshes_.size(); i++) {
         this->prev_state_.push_back(this->meshes_.at(i)->getPose());
     }
 

@@ -120,13 +120,14 @@ protected:
         if(link_nr<0 || link_nr>7) return out;
         std::mt19937 mt_rand(time(0));
         std::normal_distribution<double> rand_eff(0,this->noise_std_);
+        
 
 
 
-        for (int i = 1; i < out.effort.size(); i++) {
+        for (int i = 0; i < out.effort.size(); i++) {
             if(i<link_nr){
-                KDL::Wrench wrench1=frames.at(i+1).Inverse()*wrench;
-                p_local=frames.at(i+1).Inverse()*vector;
+                KDL::Wrench wrench1=frames.at(i+2).Inverse()*wrench;
+                p_local=frames.at(i+2).Inverse()*vector;
                 tf::pointKDLToMsg(p_local,this->p_local_.point);
                 this->p_local_.header.frame_id=link_name.substr(6,11);
                 out.effort.at(i)=wrench1.torque.z()+rand_eff(mt_rand);
@@ -154,6 +155,8 @@ void ContactDisplay::run() {
         visualization_msgs::MarkerArray markerArray;
         geometry_msgs::PointStamped ps;
         geometry_msgs::WrenchStamped fs;
+        sensor_msgs::JointState js;
+        js=this->joint_state_;
         for (unsigned int i=0;i<contacts_.contact_size();i++){
             if (std::strncmp(contacts_.contact(i).collision2().c_str(),"ground_plane",10)!=0){
                 gazebo::msgs::Vector3d p=contacts_.contact(i).position().Get(0);
@@ -162,7 +165,7 @@ void ContactDisplay::run() {
                 ps.point.x=p.x();ps.point.y=p.y();ps.point.z=p.z();
                 fs.wrench.force.x=f.x();fs.wrench.force.y=f.y();fs.wrench.force.z=f.z();
 
-                sensor_msgs::JointState js=this->create_fake_js(joint_state_,fs,ps,link_poses,contacts_.contact(i).collision2());
+                js=this->create_fake_js(joint_state_,fs,ps,link_poses,contacts_.contact(i).collision2());
 
 
                 fs.header.stamp=ros::Time::now();
@@ -172,10 +175,11 @@ void ContactDisplay::run() {
                 this->pub_force_.publish(fs);
                 this->pub_point_.publish(ps);
                 this->pub_arrows_.publish(markerArray);
-                this->pub_js_.publish(js);
                 this->pub_point_local_.publish(this->p_local_);
             }
         }
+        this->pub_js_.publish(js);
+
     }
 
 

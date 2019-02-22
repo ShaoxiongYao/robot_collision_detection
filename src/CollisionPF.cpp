@@ -78,6 +78,11 @@ void CollisionPF::setSensors(){
     }
 }
 
+bool CollisionPF::pauseEstimation(std_srvs::Trigger::Request& request, std_srvs::Trigger::Response& response) {
+    this->loadParameters();
+    this->run_=!this->run_;
+}
+
 
 bool CollisionPF::stepEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response) {
     this->run_= false;
@@ -214,7 +219,7 @@ std::vector<CollisionPF::Particle> CollisionPF::addNoise(std::vector<CollisionPF
         //std::vector<int> idx=this->meshes_.at(part.at(i).n)->getPointsInRadius(this->meshes_.at(part.at(i).n)->pcloud_->at(part.at(i).p),std_dev.at(1));
         //out.at(i).p=idx.at(mt_rand()%(idx.size())); //Random between 0 and idx.size()
 
-        out.at(i).K=part.at(i).K+rand_K(mt_rand);
+        out.at(i).K=fabs(part.at(i).K+rand_K(mt_rand));
         out.at(i).w=part.at(i).w;
     }
     return (out);
@@ -391,6 +396,7 @@ void CollisionPF::init(){
     srv_parts_ = nh_->advertiseService("get_particles",&CollisionPF::partReturnCallback, this);
     srv_restart_ = nh_->advertiseService("restart_estimation",&CollisionPF::restartEstimation, this);
     srv_step_ = nh_->advertiseService("step_estimation",&CollisionPF::stepEstimation, this);
+    srv_pause_ = nh_->advertiseService("pause_estimation",&CollisionPF::pauseEstimation, this);
 
     this->prev_state_.clear();
     for (unsigned long i = 0; i < this->meshes_.size(); i++) {

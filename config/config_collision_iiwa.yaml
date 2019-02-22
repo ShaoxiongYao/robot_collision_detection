@@ -1,5 +1,5 @@
 robot_description_param: "/robot_description" 
-joint_states_topic:  "/new_joint_states"
+joint_states_topic:  "/fake_joint_states"
 base_frame: "iiwa_link_0"
 ee_frame: "iiwa_link_7"
 frequency: 10.0
@@ -7,11 +7,13 @@ frequency: 10.0
 sensors: [-1, 6, 6, 6, 6, 6, 6, 6] #-1: None; 0: FTsensor; 1: Force_x; 4:Torque_x, ...
 sensor_noise: 0.0
 pf:
-  num_parts: 5000
-  search_alpha: 0.03 #aggressiveness of search
+  num_parts: 10000
+  search_alpha: 0.01 #aggressiveness of search
   perc_new: 0.9999 # (1-p) percentage of new particles
-  std_devs: [0.0, 0.04, 04.10, 50] #Transition,  pos, Force, K
+  #std_devs: [0.01, 0.05, 05.0, 500] #Transition,  pos, Force, K
+  std_devs: [0.001, 0.005, 01.0, 5] #Transition,  pos, Force, K
+  #std_devs: [0.00, 0.001, 0.10, 1] #Transition,  pos, Force, K
   ranges:
-    n: [5, 6]
-    F: [0, 50]
-    K: [5000, 5001]
+    n: [0, 7]
+    F: [0, 150]
+    K: [50, 5000]

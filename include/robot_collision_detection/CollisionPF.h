@@ -27,6 +27,7 @@
 #include <robot_collision_detection/CollMesh.h>
 #include <robot_collision_detection/GetParts.h>
 #include <std_srvs/Empty.h>
+#include <std_srvs/Trigger.h>
 
 class CollisionPF {
 public:
@@ -58,7 +59,7 @@ protected:
     ros::NodeHandle* nh_;
     ros::Publisher pub_marray_,pub_poses_,pub_pc_;
     ros::Subscriber sub_jointstate_;
-    ros::ServiceServer srv_parts_,srv_restart_,srv_step_;
+    ros::ServiceServer srv_parts_,srv_restart_,srv_step_,srv_pause_;
     std::string ns_,description_param_,base_frame_,ee_frame_,robot_description_xml_,joint_states_topic_;
     KDL::Chain robot_chain_;
     KDL::Tree robot_tree_;
@@ -89,6 +90,7 @@ protected:
     bool partReturnCallback(robot_collision_detection::GetParts::Request& request, robot_collision_detection::GetParts::Response& response);
     bool restartEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
     bool stepEstimation(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+    bool pauseEstimation(std_srvs::Trigger::Request& request, std_srvs::Trigger::Response& response);
     void publishOutputs(std::vector<CollisionPF::Particle> parts);
 };
 

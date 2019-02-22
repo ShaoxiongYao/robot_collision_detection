@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 import roslib; roslib.load_manifest('robot_collision_detection')
 import rospy
+import rospkg
 from robot_collision_detection.msg import CollPart
 from robot_collision_detection.srv import GetParts, GetPartsRequest, GetPartsResponse
 
 from geometry_msgs.msg import PoseArray, Pose, PoseStamped, TwistStamped, WrenchStamped, Vector3, PointStamped, Point
 from qb_interface.msg import handRef, handPos
 from std_msgs.msg import UInt32MultiArray, String
-from std_srvs.srv import Empty, EmptyRequest
+from std_srvs.srv import Empty, EmptyRequest, Trigger, TriggerRequest
 import time
 import matplotlib as mpl
 import numpy as np
 import sys
+import os
+from subprocess import call
 if sys.version_info[0] < 3:
     import Tkinter as tk
 else:
@@ -33,6 +36,9 @@ class PartUI():
         self.n_links=8;
         rospy.wait_for_service('robot_collision_detection/step_estimation')
         self.srv_client = rospy.ServiceProxy('robot_collision_detection/step_estimation', Empty)
+        self.srv_client2 = rospy.ServiceProxy('robot_collision_detection/pause_estimation', Trigger)
+        self.srv_restart = rospy.ServiceProxy('robot_collision_detection/restart_estimation', Empty)
+
 
         self.p_sub=rospy.Subscriber("/contact_point_local", PointStamped, self.p_callback)
         self.f_sub=rospy.Subscriber("/contact_force", WrenchStamped, self.f_callback)
@@ -43,7 +49,18 @@ class PartUI():
         self.get_plot_ranges()
         self.p_true=Point()
         self.f_true=Vector3()
-     
+
+    def load_param_file(self):
+    	file='/config/config_collision_iiwa.yaml'
+    	#embed()
+        #folder=subprocess.check_output('rospack find robot_collision_detection')
+        #folder=call('rospack find robot_collision_detection')
+        folder=rospkg.RosPack().get_path('robot_collision_detection')
+        command='rosparam load '+folder+file
+        print(command)
+        os.system('ROS_NAMESPACE=robot_collision_detection ' + command)
+
+
     def create_widgets(self,parent=window):
         b = tk.Button(parent, text="Pause", command=self.pause_callback)
         b.grid(row=0,column=1)
@@ -53,6 +70,8 @@ class PartUI():
         b.grid(row=1,column=2)
         b = tk.Button(parent, text="resize", command=self.get_plot_ranges)
         b.grid(row=0,column=2)
+        b = tk.Button(parent, text="restart", command=self.restart_estimation)
+        b.grid(row=0,column=3)
 
 
         r_group = tk.LabelFrame(parent, text="Show", padx=5, pady=5)
@@ -95,8 +114,15 @@ class PartUI():
         x,y,n,w=self.parts_to_xy(parts.part)
            
 
+    def restart_estimation(self):
+    	self.load_param_file()
+        self.srv_restart(EmptyRequest())
+
+
     def pause_callback(self):
         print "paused!"
+        self.load_param_file()
+        self.srv_client2(TriggerRequest())
         self.is_running = not self.is_running
 
     def enable_all_links_callback(self):        
@@ -171,6 +197,7 @@ class PartUI():
     def callStep(self):
     	#self.is_running=False
         try:
+            self.load_param_file()
             self.srv_client(EmptyRequest())
             self.redraw()
             window.update()
@@ -243,7 +270,11 @@ class PartUI():
 
         
         self.ax.set_xlim(self.xmin,self.xmax)
-        self.ax.set_ylim(self.ymin,self.ymax)
+        if(self.v_radio.get()==1):
+            self.ax.set_ylim(self.ymin,min(200,self.ymax))
+        elif(self.v_radio.get()==2):
+            self.ax.set_ylim(self.ymin,self.ymax)
+        
         self.ax.set_xlabel('l')
         if(self.v_radio.get()==1):
             self.ax.set_ylabel('F')
@@ -255,10 +286,10 @@ class PartUI():
     def run(self):
         while not rospy.is_shutdown():
             self.rate.sleep()
-            if self.is_running:
-                self.redraw()
+            #if self.is_running:
+            self.redraw()
             	#self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
-        	window.update()
+            window.update()
 
 
 

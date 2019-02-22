@@ -37,6 +37,7 @@ public:
     }
 
     void run();
+    void wait();
 
 protected:
     gazebo::transport::SubscriberPtr sub_;
@@ -120,17 +121,19 @@ protected:
         if(link_nr<0 || link_nr>7) return out;
         std::mt19937 mt_rand(time(0));
         std::normal_distribution<double> rand_eff(0,this->noise_std_);
-        
 
+        p_local=frames.at(link_nr).Inverse()*vector;
+        tf::pointKDLToMsg(p_local,this->p_local_.point);
+        this->p_local_.header.frame_id=link_name.substr(6,11);
 
-
+        wrench.torque=KDL::Vector(0,0,0);
         for (int i = 0; i < out.effort.size(); i++) {
             if(i<link_nr){
-                KDL::Wrench wrench1=frames.at(i+2).Inverse()*wrench;
-                p_local=frames.at(i+2).Inverse()*vector;
-                tf::pointKDLToMsg(p_local,this->p_local_.point);
-                this->p_local_.header.frame_id=link_name.substr(6,11);
-                out.effort.at(i)=wrench1.torque.z()+rand_eff(mt_rand);
+                KDL::Vector p_i=frames.at(i+1).Inverse()*vector;
+                KDL::Vector f_i=frames.at(i+1).Inverse()*wrench.force;
+                out.effort.at(i)=-(p_i.x()*f_i.y()-p_i.y()*f_i.x())+rand_eff(mt_rand);
+                //KDL::Wrench wrench1=frames.at(i+1).Inverse()*-wrench;
+                //out.effort.at(i)=wrench1.torque.z()+rand_eff(mt_rand);
             }
             else{
                 out.effort.at(i)=0+rand_eff(mt_rand);
@@ -138,14 +141,18 @@ protected:
             //frames.at(i).Inverse()
         }
 
-
         //p.header.
 
         return out;
     }
 };
 
-
+void ContactDisplay::wait(){
+    while(link_poses.size()==0 || joint_state_.name.size()==0 || contacts_.contact_size()==0) {
+        ros::spinOnce();
+        rrate_->sleep();
+    }
+    }
 
 void ContactDisplay::run() {
     while (ros::ok()){
@@ -165,8 +172,7 @@ void ContactDisplay::run() {
                 ps.point.x=p.x();ps.point.y=p.y();ps.point.z=p.z();
                 fs.wrench.force.x=f.x();fs.wrench.force.y=f.y();fs.wrench.force.z=f.z();
 
-                js=this->create_fake_js(joint_state_,fs,ps,link_poses,contacts_.contact(i).collision2());
-
+                js = this->create_fake_js(joint_state_, fs, ps, link_poses, contacts_.contact(i).collision2());
 
                 fs.header.stamp=ros::Time::now();
                 fs.header.frame_id="world";
@@ -190,6 +196,7 @@ int main(int _argc, char **_argv) {
     ros::init(_argc, _argv, "force_measure");
 
     ContactDisplay cd;
+    cd.wait();
     cd.run();
 
 

@@ -4,7 +4,9 @@
 
 #include <robot_collision_detection/CollisionPF.h>
 
-void CollisionPF::loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes){
+void CollisionPF::loadMeshes(urdf::ModelInterfaceSharedPtr model,
+                             std::vector<urdf::LinkConstSharedPtr> &links_phys,
+                             std::vector<std::shared_ptr<CollMesh> > &meshes){
     std::vector<urdf::LinkConstSharedPtr> links;
     links.push_back(model->getRoot());
     //links.push_back(urdf_model_->getLink(links.back()->child_joints.back()->child_link_name));
@@ -18,7 +20,8 @@ void CollisionPF::loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urd
         if(links.back()->collision!= nullptr){
             std::string mesh_path;
             if (links.back()->collision->geometry->type==urdf::Geometry::MESH){
-                urdf::Mesh* mesh= boost::dynamic_pointer_cast<urdf::Mesh>(links.back()->collision->geometry.get());
+                // auto mesh = std::dynamic_pointer_cast<urdf::Mesh>(links.back()->collision->geometry.get());
+                std::shared_ptr<urdf::Mesh> mesh= urdf::dynamic_pointer_cast<urdf::Mesh,urdf::Geometry>(links.back()->collision->geometry);
                 if (mesh->filename.substr(0,10)=="package://") {
                     std::size_t pos = mesh->filename.substr(10).find('/');
                     mesh_path = ros::package::getPath(mesh->filename.substr(10, pos)) +
@@ -31,7 +34,7 @@ void CollisionPF::loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urd
                 links_phys.push_back((urdf::LinkConstSharedPtr) links.back());
 
 
-                boost::shared_ptr<CollMesh> a(new CollMesh(mesh_path,links.back()));
+                std::shared_ptr<CollMesh> a(new CollMesh(mesh_path,links.back()));
                 //a=new CollMesh(mesh_path);
                 meshes_.push_back(a);
                 //printf("N: %d\n",a->getMesh()->mNumVertices);

@@ -67,8 +67,8 @@ protected:
     urdf::ModelInterfaceSharedPtr urdf_model_;
     sensor_msgs::JointState joint_state_;
     ros::Rate* rate_;
-    std::vector<boost::shared_ptr<CollMesh> > meshes_;
-    boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
+    std::vector<std::shared_ptr<CollMesh> > meshes_;
+    std::shared_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
     std::vector<int> sensor_types;
     std::vector<double> std_devs_;
     int num_parts_;
@@ -78,7 +78,7 @@ protected:
     std::vector<CollisionPF::Particle> part_ranges;
     void init();
     bool loadParameters();
-    void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<boost::shared_ptr<CollMesh> > &meshes);
+    void loadMeshes(urdf::ModelInterfaceSharedPtr model,std::vector<urdf::LinkConstSharedPtr> &links_phys,std::vector<std::shared_ptr<CollMesh> > &meshes);
     void setSensors();
     bool measurementModel(std::vector<CollisionPF::Particle> &part, std::vector<KDL::Wrench> forces,double alpha);
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg);

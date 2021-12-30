@@ -14,7 +14,7 @@ RobotController::RobotController() {
 
     kdl_parser::treeFromParam(this->description_param_,robot_tree_);
     this->robot_tree_.getChain(this->base_frame_,ee_frame_,this->robot_chain_);
-    this->dyn_model_.reset(new() KDL::ChainDynParam(this->robot_chain_,KDL::Vector(0,0,-9.8)));
+    this->dyn_model_.reset(new KDL::ChainDynParam(this->robot_chain_,KDL::Vector(0,0,-9.8)));
     this->joints_.resize(this->robot_chain_.getNrOfJoints());
     this->joints_.qdot.data.setZero();
 

@@ -31,9 +31,9 @@ protected:
 
     std::vector<LowPassFilter> filt_vel,filt_acc,filt_torq;
 
-    boost::scoped_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
-    boost::scoped_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_;
-    boost::scoped_ptr<KDL::ChainDynParam> dyn_model_;
+    std::shared_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_;
+    std::shared_ptr<KDL::ChainJntToJacSolver> jnt_to_jac_solver_;
+    std::shared_ptr<KDL::ChainDynParam> dyn_model_;
     sensor_msgs::JointState joint_state_;
     double alpha_;
 
